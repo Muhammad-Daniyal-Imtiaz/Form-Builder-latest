@@ -4,27 +4,20 @@ const path = require('path');
 const baseDir = path.join(process.cwd(), '.open-next');
 const srcDir = path.join(baseDir, 'assets');
 
-function moveFiles(currentSrc, currentDest) {
-    if (!fs.existsSync(currentSrc)) return;
-    
-    if (!fs.existsSync(currentDest)) {
-        fs.mkdirSync(currentDest, { recursive: true });
+function copyRecursive(src, dest) {
+    if (!fs.existsSync(src)) return;
+    const stats = fs.statSync(src);
+    if (stats.isDirectory()) {
+        if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+        fs.readdirSync(src).forEach(child => {
+            copyRecursive(path.join(src, child), path.join(dest, child));
+        });
+    } else {
+        console.log(`[DEPLOY] Copying: ${path.relative(srcDir, src)}`);
+        fs.copyFileSync(src, dest);
     }
-
-    const items = fs.readdirSync(currentSrc);
-    items.forEach(item => {
-        const s = path.join(currentSrc, item);
-        const d = path.join(currentDest, item);
-
-        if (fs.statSync(s).isDirectory()) {
-            moveFiles(s, d);
-        } else {
-            console.log(`[DEPLOY] Moving: ${item} to root`);
-            fs.copyFileSync(s, d);
-        }
-    });
 }
 
-console.log('--- STARTING NUCLEAR ASSET MOVE ---');
-moveFiles(srcDir, baseDir);
+console.log('--- STARTING ASSET MOVE (PRESERVE STRUCTURE) ---');
+copyRecursive(srcDir, baseDir);
 console.log('--- ASSET MOVE COMPLETE ---');
