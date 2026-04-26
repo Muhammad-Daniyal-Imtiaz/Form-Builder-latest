@@ -20,4 +20,6 @@ function copyRecursive(src, dest) {
 
 console.log('--- STARTING ASSET MOVE (PRESERVE STRUCTURE) ---');
 copyRecursive(srcDir, baseDir);
+console.log('Cleaning up assets folder...');
+fs.rmSync(srcDir, { recursive: true, force: true });
 console.log('--- ASSET MOVE COMPLETE ---');
