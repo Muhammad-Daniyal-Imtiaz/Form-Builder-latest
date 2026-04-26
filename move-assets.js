@@ -1,32 +1,30 @@
 const fs = require('fs');
 const path = require('path');
 
-const srcDir = path.join(process.cwd(), '.open-next', 'assets');
-const destDir = path.join(process.cwd(), '.open-next');
+const baseDir = path.join(process.cwd(), '.open-next');
+const srcDir = path.join(baseDir, 'assets');
 
-if (fs.existsSync(srcDir)) {
-    console.log('Moving files from .open-next/assets to .open-next...');
-    const files = fs.readdirSync(srcDir);
-    files.forEach(file => {
-        const srcPath = path.join(srcDir, file);
-        const destPath = path.join(destDir, file);
-        
-        if (fs.existsSync(destPath) && fs.statSync(destPath).isDirectory()) {
-            console.log(`Merging directory: ${file}`);
-            // Simple recursive merge for directories like _next
-            const subFiles = fs.readdirSync(srcPath);
-            subFiles.forEach(subFile => {
-                const subSrc = path.join(srcPath, subFile);
-                const subDest = path.join(destPath, subFile);
-                if (!fs.existsSync(destPath)) fs.mkdirSync(destPath, { recursive: true });
-                fs.renameSync(subSrc, subDest);
-            });
+function moveFiles(currentSrc, currentDest) {
+    if (!fs.existsSync(currentSrc)) return;
+    
+    if (!fs.existsSync(currentDest)) {
+        fs.mkdirSync(currentDest, { recursive: true });
+    }
+
+    const items = fs.readdirSync(currentSrc);
+    items.forEach(item => {
+        const s = path.join(currentSrc, item);
+        const d = path.join(currentDest, item);
+
+        if (fs.statSync(s).isDirectory()) {
+            moveFiles(s, d);
         } else {
-            console.log(`Moving file/folder: ${file}`);
-            fs.renameSync(srcPath, destPath);
+            console.log(`[DEPLOY] Moving: ${item} to root`);
+            fs.copyFileSync(s, d);
         }
     });
-    console.log('Done!');
-} else {
-    console.log('Source directory not found, skipping move.');
 }
+
+console.log('--- STARTING NUCLEAR ASSET MOVE ---');
+moveFiles(srcDir, baseDir);
+console.log('--- ASSET MOVE COMPLETE ---');
