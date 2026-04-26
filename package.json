@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cloudflare": "npx opennextjs-cloudflare build && mv .open-next/worker.js .open-next/_worker.js",
+    "build:cloudflare": "npx opennextjs-cloudflare build && node move-assets.js && mv .open-next/worker.js .open-next/_worker.js",
     "start": "next start",
     "start:cloudflare": "npx opennextjs-cloudflare",
     "lint": "eslint",
