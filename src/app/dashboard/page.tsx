@@ -34,6 +34,14 @@ export default async function DashboardPage() {
       <header className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
         <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent tracking-tighter">FormFlow AI</h1>
         <div className="flex items-center gap-6">
+          <Link 
+            href="/dashboard/json-guide"
+            className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-indigo-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            JSON Guide
+          </Link>
+          <div className="w-px h-4 bg-gray-200" />
           <div className="flex flex-col items-end">
             <span className="text-sm font-bold text-gray-900">{dbUser?.name || user.user_metadata?.name || 'User'}</span>
             <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest leading-none">{dbUser?.role || 'Basic Plan'}</span>

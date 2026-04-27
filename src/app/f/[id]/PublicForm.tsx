@@ -709,6 +709,27 @@ export default function PublicForm({
                     </div>
                   )}
 
+                  {field.type === 'rating' && (
+                    <div className="flex items-center gap-2 py-2">
+                       {[1, 2, 3, 4, 5].map((star) => (
+                         <button
+                           key={star}
+                           type="button"
+                           onClick={() => handleInputChange(fieldKey, star)}
+                           className="transition-all hover:scale-110 active:scale-95"
+                           style={{ 
+                             color: (data[fieldKey] || 0) >= star ? cs.accentColor : `${cs.bodyText}20`
+                           }}
+                         >
+                           <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                         </button>
+                       ))}
+                       {(data[fieldKey] || 0) > 0 && (
+                         <span className="ml-3 text-sm font-bold opacity-60" style={{ color: cs.bodyText }}>{data[fieldKey]} / 5</span>
+                       )}
+                    </div>
+                  )}
+
                   {['file', 'multifile'].includes(field.type) && (() => {
                     const mode = fileModes[fieldKey] || 'upload'
                     return (

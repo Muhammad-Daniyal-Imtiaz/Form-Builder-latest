@@ -47,7 +47,7 @@ export async function PUT(
         // Then, insert new fields with updated orders
         if (fields.length > 0) {
             const newFields = fields.map((field: any, index: number) => ({
-                id: field.id, // Crucial: Keep the UUID so logic targetIds don't break
+                id: field.id || crypto.randomUUID(), // Generate UUID if missing
                 form_id: id,
                 label: field.label || 'Untitled Field',
                 type: field.type || 'text',

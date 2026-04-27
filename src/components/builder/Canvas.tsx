@@ -133,6 +133,16 @@ function SortableFieldItem({ field }: { field: FormField }) {
             </div>
           )}
 
+          {field.type === 'rating' && (
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <div key={s} className="p-1 text-gray-300">
+                   <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                </div>
+              ))}
+            </div>
+          )}
+
           {['file', 'multifile'].includes(field.type) && (
             <div className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
               <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>

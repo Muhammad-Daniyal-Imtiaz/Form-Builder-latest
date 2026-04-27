@@ -6,7 +6,7 @@ import {
   Type, Mail, Hash, AlignLeft, List, CheckSquare, 
   FileUp, Palette, Plus, Settings, Check, 
   MousePointer2, MessageSquare, ExternalLink, RefreshCcw,
-  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet, Zap
+  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet, Zap, Star
 } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
@@ -33,6 +33,7 @@ const FIELD_TOOLS: { type: FieldType; label: string; icon: React.ReactNode; desc
   { type: 'select', label: 'Dropdown', icon: <List className="w-4 h-4" />, desc: 'Select from a list' },
   { type: 'checkbox', label: 'Multiple Choice', icon: <CheckSquare className="w-4 h-4" />, desc: 'Select multiple options' },
   { type: 'radio', label: 'Single Choice', icon: <CheckSquare className="w-4 h-4" />, desc: 'Select exactly one option' },
+  { type: 'rating', label: 'Star Rating', icon: <Star className="w-4 h-4" />, desc: '5-star satisfaction rating' },
   { type: 'file', label: 'File Upload', icon: <FileUp className="w-4 h-4" />, desc: 'Allow users to upload files' },
 ]
 

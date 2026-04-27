@@ -57,20 +57,26 @@ export async function PUT(
     }
 
     const updates = await request.json()
+    
+    // Build update object with only provided fields
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+    
+    if (updates.title !== undefined) updateData.title = updates.title
+    if (updates.description !== undefined) updateData.description = updates.description
+    if (updates.published !== undefined) updateData.published = updates.published
+    if (updates.logo_url !== undefined) updateData.logo_url = updates.logo_url
+    if (updates.cover_image_url !== undefined) updateData.cover_image_url = updates.cover_image_url
+
     const { data: form, error } = await supabase
       .from('forms')
-      .update({
-        title: updates.title,
-        description: updates.description,
-        published: updates.published,
-        logo_url: updates.logo_url,
-        cover_image_url: updates.cover_image_url,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
       .single()
+
 
     if (error) {
       if (error.code === 'PGRST116') {

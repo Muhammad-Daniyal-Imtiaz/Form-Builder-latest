@@ -4,12 +4,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { TEMPLATES, Template, TemplateCategory } from '@/lib/templates'
+import ImportFormModal from '@/components/ImportFormModal'
+
 
 export default function NewFormPage() {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null) // ID of template being loaded
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<TemplateCategory | 'All'>('All')
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+
 
   const handleCreateForm = async (template?: Template) => {
     const templateId = template?.id || 'blank'
@@ -61,6 +65,77 @@ export default function NewFormPage() {
     }
   }
 
+  const handleImportForm = async (data: any) => {
+    setLoading('import')
+    setError('')
+
+    try {
+      // 1. Create the Form
+      const formTitle = data.name || data.title || 'Untitled Form'
+      const formDesc = data.description || ''
+      
+      const res = await fetch('/api/forms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: formTitle, 
+          description: formDesc 
+        }),
+      })
+
+      const formData = await res.json()
+      if (!res.ok) throw new Error(formData.error || 'Failed to create form')
+
+      // 2. Build the update payload with all supported fields
+      const fields = data.fields || []
+      const customStyles = data.customStyles || {}
+      const settings = data.settings || {}
+      const updatePayload: Record<string, any> = {}
+
+      // Serialize styles and settings into description (matching BuilderContext format)
+      let descPayload = formDesc
+      if (Object.keys(customStyles).length > 0) {
+        descPayload += `|||STYLES:${JSON.stringify(customStyles)}`
+      }
+      if (Object.keys(settings).length > 0) {
+        descPayload += `|||SETTINGS:${JSON.stringify(settings)}`
+      }
+      if (descPayload !== formDesc) {
+        updatePayload.description = descPayload
+      }
+
+      // Branding images
+      if (data.logo_url) updatePayload.logo_url = data.logo_url
+      if (data.cover_image_url) updatePayload.cover_image_url = data.cover_image_url
+
+      if (Object.keys(updatePayload).length > 0) {
+        await fetch(`/api/forms/${formData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload),
+        })
+      }
+
+      // 3. Add fields
+      if (fields.length > 0) {
+        const fieldsRes = await fetch(`/api/forms/${formData.id}/fields`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields }),
+        })
+        if (!fieldsRes.ok) throw new Error('Failed to populate fields')
+      }
+
+      // 4. Redirect to editor
+      router.push(`/dashboard/forms/${formData.id}/edit`)
+    } catch (err: any) {
+      setError(err.message)
+      setLoading(null)
+      setIsImportModalOpen(false)
+    }
+  }
+
+
   const filteredTemplates = filter === 'All' 
     ? TEMPLATES 
     : TEMPLATES.filter(t => t.category === filter)
@@ -75,18 +150,28 @@ export default function NewFormPage() {
                 </Link>
                 <h1 className="text-xl font-black text-gray-900 tracking-tight">Select a Template</h1>
             </div>
-            <button 
-                onClick={() => handleCreateForm()}
-                disabled={!!loading}
-                className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all text-sm flex items-center gap-2 active:scale-95 disabled:opacity-50"
-            >
-                {loading === 'blank' ? 'Creating...' : (
-                    <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
-                        Start Blank
-                    </>
-                )}
-            </button>
+            <div className="flex gap-3">
+                <button 
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="bg-white text-indigo-600 px-5 py-2 rounded-xl font-bold border border-indigo-100 shadow-sm hover:bg-indigo-50 transition-all text-sm flex items-center gap-2 active:scale-95"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    Import JSON
+                </button>
+                <button 
+                    onClick={() => handleCreateForm()}
+                    disabled={!!loading}
+                    className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all text-sm flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                    {loading === 'blank' ? 'Creating...' : (
+                        <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+                            Start Blank
+                        </>
+                    )}
+                </button>
+            </div>
+
        </div>
 
        <div className="max-w-7xl w-full mx-auto p-6 md:p-10 flex-1">
@@ -185,7 +270,14 @@ export default function NewFormPage() {
                   </button>
               ))}
           </div>
-       </div>
+        </div>
+
+        <ImportFormModal 
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleImportForm}
+          loading={loading === 'import'}
+        />
     </div>
   )
 }
