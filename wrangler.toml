@@ -6,3 +6,4 @@ pages_build_output_dir = ".open-next"
 [vars]
 # Add your production environment variables here if needed
 # ENCRYPTION_SECRET = "..."
+# Redeployed: 2026-04-27
