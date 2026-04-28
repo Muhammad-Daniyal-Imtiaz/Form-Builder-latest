@@ -87,6 +87,8 @@ const DEFAULT_SETTINGS: FormSettings = {
   redirectUrl: '',
 }
 
+import DOMPurify from 'dompurify'
+
 export default function PublicForm({ 
   form, 
   customStyles: rawStyles,
@@ -97,6 +99,16 @@ export default function PublicForm({
   formSettings?: Partial<FormSettings>;
 }) {
   const router = useRouter()
+  
+  // Sanitize helper
+  const sanitize = (text: string) => {
+    if (typeof window === 'undefined') return text // Server side
+    return DOMPurify.sanitize(text, {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'br'],
+      ALLOWED_ATTR: ['href', 'target', 'rel']
+    })
+  }
+
   const [data, setData] = useState<Record<string, any>>({})
   const [files, setFiles] = useState<Record<string, any>>({})
   const [fileModes, setFileModes] = useState<Record<string, 'upload' | 'link'>>({})
@@ -479,12 +491,8 @@ export default function PublicForm({
               </div>
             )}
 
-            <h1 className="text-3xl lg:text-5xl font-black tracking-tight mb-4" style={{ textAlign: cs.headerAlignment }}>
-              {form.title}
-            </h1>
-            <p className="text-lg opacity-80 leading-relaxed max-w-xl" style={{ textAlign: cs.headerAlignment }}>
-              {displayDescription}
-            </p>
+            <h1 className="text-3xl lg:text-5xl font-black tracking-tight mb-4" style={{ textAlign: cs.headerAlignment }} dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
+            <p className="text-lg opacity-80 leading-relaxed max-w-xl" style={{ textAlign: cs.headerAlignment }} dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
           </div>
 
           <div className="relative z-10 mt-12">
@@ -553,12 +561,8 @@ export default function PublicForm({
                     />
                   </div>
                 )}
-                <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: cs.bodyText }}>
-                  {form.title}
-                </h1>
-                <p className="text-lg opacity-60 leading-relaxed font-medium">
-                  {displayDescription}
-                </p>
+                <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: cs.bodyText }} dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
+                <p className="text-lg opacity-60 leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
               </div>
             )}
 
@@ -605,10 +609,7 @@ export default function PublicForm({
 
               return (
                 <div key={fieldKey} id={`field-${fieldKey}`} className="space-y-2 rounded-xl transition-all duration-300">
-                  <label style={labelStyle}>
-                    {field.label}
-                    {field.required && <span style={{ color: cs.accentColor }} className="ml-1.5">*</span>}
-                  </label>
+                  <label style={labelStyle} dangerouslySetInnerHTML={{ __html: sanitize(field.label) + (field.required ? `<span style="color: ${cs.accentColor}" class="ml-1.5">*</span>` : '') }} />
 
                   {field.type === 'text' && (
                     <input type="text" placeholder={field.placeholder || ''}

@@ -16,13 +16,9 @@ export default function ImportFormModal({ isOpen, onClose, onImport, loading }: 
   if (!isOpen) return null
 
   const handleImport = async () => {
-    try {
-      const data = JSON.parse(jsonText)
-      setError('')
-      await onImport(data)
-    } catch (err: any) {
-      setError('Invalid JSON format. Please check your input.')
-    }
+    if (!jsonText.trim()) return
+    setError('')
+    await onImport(jsonText)
   }
 
   return (

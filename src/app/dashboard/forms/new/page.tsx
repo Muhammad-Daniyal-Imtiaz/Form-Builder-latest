@@ -65,73 +65,35 @@ export default function NewFormPage() {
     }
   }
 
-  const handleImportForm = async (data: any) => {
+  const handleImportForm = async (jsonString: string) => {
     setLoading('import')
     setError('')
 
     try {
-      // 1. Create the Form
-      const formTitle = data.name || data.title || 'Untitled Form'
-      const formDesc = data.description || ''
-      
-      const res = await fetch('/api/forms', {
+      const res = await fetch('/api/import-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: formTitle, 
-          description: formDesc 
-        }),
+        body: JSON.stringify({ jsonString }),
       })
 
-      const formData = await res.json()
-      if (!res.ok) throw new Error(formData.error || 'Failed to create form')
-
-      // 2. Build the update payload with all supported fields
-      const fields = data.fields || []
-      const customStyles = data.customStyles || {}
-      const settings = data.settings || {}
-      const updatePayload: Record<string, any> = {}
-
-      // Serialize styles and settings into description (matching BuilderContext format)
-      let descPayload = formDesc
-      if (Object.keys(customStyles).length > 0) {
-        descPayload += `|||STYLES:${JSON.stringify(customStyles)}`
-      }
-      if (Object.keys(settings).length > 0) {
-        descPayload += `|||SETTINGS:${JSON.stringify(settings)}`
-      }
-      if (descPayload !== formDesc) {
-        updatePayload.description = descPayload
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.details) {
+          // If Zod error, show details
+          const details = Array.isArray(data.details) 
+            ? data.details.map((d: any) => `${d.path.join('.')}: ${d.message}`).join(', ')
+            : JSON.stringify(data.details)
+          throw new Error(`Validation Error: ${details}`)
+        }
+        throw new Error(data.error || 'Failed to import form')
       }
 
-      // Branding images
-      if (data.logo_url) updatePayload.logo_url = data.logo_url
-      if (data.cover_image_url) updatePayload.cover_image_url = data.cover_image_url
-
-      if (Object.keys(updatePayload).length > 0) {
-        await fetch(`/api/forms/${formData.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatePayload),
-        })
-      }
-
-      // 3. Add fields
-      if (fields.length > 0) {
-        const fieldsRes = await fetch(`/api/forms/${formData.id}/fields`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields }),
-        })
-        if (!fieldsRes.ok) throw new Error('Failed to populate fields')
-      }
-
-      // 4. Redirect to editor
-      router.push(`/dashboard/forms/${formData.id}/edit`)
+      // Redirect to editor
+      router.push(`/dashboard/forms/${data.id}/edit`)
     } catch (err: any) {
+      console.error('Import Error:', err)
       setError(err.message)
       setLoading(null)
-      setIsImportModalOpen(false)
     }
   }
 
