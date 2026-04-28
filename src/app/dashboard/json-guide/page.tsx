@@ -296,7 +296,7 @@ User Request: `
               </div>
               <div className="space-y-2">
                 <TokenRow label="submitButtonText" value='"Register Now", "Send", "Join Waitlist"' color="text-rose-600" />
-                <TokenRow label="thankYouHeadline" value='"Thank You!", "You\'re In!", "All Done!"' color="text-rose-600" />
+                <TokenRow label="thankYouHeadline" value='"Thank You!", "You&apos;re In!", "All Done!"' color="text-rose-600" />
                 <TokenRow label="thankYouMessage" value='"Your response was submitted successfully."' color="text-rose-600" />
               </div>
             </section>
