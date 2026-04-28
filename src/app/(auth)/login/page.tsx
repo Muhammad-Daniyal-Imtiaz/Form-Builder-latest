@@ -1,43 +1,70 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export default function LoginPage() {
-  const router = useRouter()
+  const [redirectTo, setRedirectTo] = useState('/dashboard')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    setRedirectTo(searchParams.get('redirectTo') || '/dashboard')
+
+    const errorCode = searchParams.get('error')
+    switch (errorCode) {
+      case 'auth_failed':
+        setError('We could not finish sign-in. Please try again.')
+        break
+      case 'no_code':
+        setError('The sign-in link was incomplete. Please try again.')
+        break
+      case 'invalid_confirmation_link':
+        setError('That email confirmation link is invalid or expired.')
+        break
+      case 'email_confirmation_failed':
+        setError('We could not confirm your email. Please request a new link.')
+        break
+      case 'server_error':
+        setError('Something went wrong on the server. Please try again.')
+        break
+      default:
+        break
+    }
+  }, [])
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setError('')
     setLoading(true)
 
-    const res = await fetch('/api/auth/signin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
+    try {
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, redirectTo }),
+      })
 
-    const data = await res.json()
+      const data = await response.json()
 
-    if (!res.ok) {
-      setError(data.error || 'Login failed')
+      if (!response.ok) {
+        setError(data.error || 'Login failed')
+        setLoading(false)
+        return
+      }
+
+      window.location.assign(data.redirectTo || redirectTo)
+    } catch {
+      setError('Sign-in failed. Please try again.')
       setLoading(false)
-      return
     }
-
-    // Success – redirect to dashboard
-    router.push('/dashboard')
-    router.refresh()
   }
 
-  const handleGoogleLogin = async () => {
-    // Redirect to Google OAuth API route
-    window.location.href = '/api/auth/google'
+  const handleGoogleLogin = () => {
+    window.location.assign(`/api/auth/google?redirectTo=${encodeURIComponent(redirectTo)}`)
   }
 
   return (
@@ -55,7 +82,7 @@ export default function LoginPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -68,7 +95,7 @@ export default function LoginPage() {
               type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -102,7 +129,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-2 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
             Sign up
           </Link>

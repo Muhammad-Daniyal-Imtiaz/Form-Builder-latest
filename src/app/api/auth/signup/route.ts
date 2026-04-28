@@ -1,36 +1,40 @@
-import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+
+import { ensureUserProfile } from '@/lib/user-profile'
+import { createAdminClient, createClient } from '@/utils/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name, ...additionalData } = await request.json()
+    const body = await request.json()
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const password = typeof body.password === 'string' ? body.password : ''
 
     if (!email || !password || !name) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters' },
+        { status: 400 }
+      )
     }
 
     const supabase = await createClient()
     const adminClient = createAdminClient()
+    const baseUrl = new URL(request.url).origin
 
-    // Check if user already exists in `users` table (optional)
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await adminClient
       .from('users')
       .select('id')
       .eq('email', email)
-      .single()
+      .maybeSingle()
 
     if (existingUser) {
       return NextResponse.json(
@@ -39,14 +43,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // Sign up with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name, ...additionalData },
-        emailRedirectTo: `${request.headers.get('origin')}/dashboard`
-      }
+        data: { name },
+        emailRedirectTo: `${baseUrl}/api/auth/confirm?next=${encodeURIComponent('/dashboard')}`,
+      },
     })
 
     if (authError || !authData.user) {
@@ -57,22 +60,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create user record in `users` table with default role 'user'
-    const { error: userError } = await adminClient
-      .from('users')
-      .insert({
-        id: authData.user.id,
-        email,
-        name,
-        role: 'user', // 👈 default
-        is_verified: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+    try {
+      await ensureUserProfile(adminClient, authData.user, {
+        markVerified: Boolean(authData.user.email_confirmed_at),
+        touchLastLogin: Boolean(authData.session),
       })
-
-    if (userError) {
-      console.error('User creation error:', userError)
-      // Rollback auth user (optional)
+    } catch (profileError) {
+      console.error('User profile creation error:', profileError)
       await adminClient.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         { error: 'Failed to create user profile' },
@@ -90,8 +84,8 @@ export async function POST(request: Request) {
         email,
         name,
         role: 'user',
-        is_verified: authData.user.email_confirmed_at !== null
-      }
+        is_verified: authData.user.email_confirmed_at !== null,
+      },
     })
   } catch (error: unknown) {
     console.error('Signup error:', error)

@@ -1,54 +1,144 @@
-import CryptoJS from 'crypto-js';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  pbkdf2Sync,
+  randomBytes,
+} from 'node:crypto';
 
-const secret = process.env.ENCRYPTION_SECRET || 'fallback_development_secret_only';
+const DEV_FALLBACK_SECRET = 'form-builder-development-secret';
+const NEW_FORMAT_PREFIX = 'enc:v2';
 
-export function encrypt(text: string): string {
-  if (!text) return text;
+let warnedAboutFallbackSecret = false;
+
+function resolveSecret() {
+  const configuredSecret = process.env.ENCRYPTION_SECRET?.trim();
+
+  if (configuredSecret) {
+    return configuredSecret;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('ENCRYPTION_SECRET must be configured in production');
+  }
+
+  if (!warnedAboutFallbackSecret) {
+    console.warn('[Encryption] Using the development fallback ENCRYPTION_SECRET.');
+    warnedAboutFallbackSecret = true;
+  }
+
+  return DEV_FALLBACK_SECRET;
+}
+
+function deriveCurrentKey(secret: string) {
+  if (/^[0-9a-fA-F]{64}$/.test(secret)) {
+    return Buffer.from(secret, 'hex');
+  }
+
+  return createHash('sha256').update(secret, 'utf8').digest();
+}
+
+function deriveLegacyKey(secret: string) {
+  return pbkdf2Sync(secret, 'salt', 100, 32, 'sha1');
+}
+
+function toBase64Url(buffer: Buffer) {
+  return buffer.toString('base64url');
+}
+
+function fromBase64Url(value: string) {
+  return Buffer.from(value, 'base64url');
+}
+
+function encryptCurrent(text: string, secret: string) {
+  const key = deriveCurrentKey(secret);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return [
+    NEW_FORMAT_PREFIX,
+    toBase64Url(iv),
+    toBase64Url(encrypted),
+    toBase64Url(authTag),
+  ].join(':');
+}
+
+function decryptCurrent(text: string, secret: string) {
+  const [, , ivPart, encryptedPart, authTagPart] = text.split(':');
+
+  if (!ivPart || !encryptedPart || !authTagPart) {
+    throw new Error('Invalid encrypted payload');
+  }
+
+  const key = deriveCurrentKey(secret);
+  const decipher = createDecipheriv('aes-256-gcm', key, fromBase64Url(ivPart));
+  decipher.setAuthTag(fromBase64Url(authTagPart));
+
+  const decrypted = Buffer.concat([
+    decipher.update(fromBase64Url(encryptedPart)),
+    decipher.final(),
+  ]);
+
+  return decrypted.toString('utf8');
+}
+
+function decryptLegacy(text: string, secret: string) {
+  const parts = text.split(':');
+  const ivHex = parts.shift();
+  const encryptedText = parts.join(':');
+
+  if (!ivHex || ivHex.length !== 32 || !encryptedText) {
+    return text;
+  }
+
   try {
-    const iv = CryptoJS.lib.WordArray.random(16);
-    const key = CryptoJS.PBKDF2(secret, 'salt', { keySize: 256 / 32, iterations: 100 });
-    
-    const encrypted = CryptoJS.AES.encrypt(text, key, {
-      iv: iv,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7
-    });
+    const key = deriveLegacyKey(secret);
+    const decipher = createDecipheriv(
+      'aes-256-cbc',
+      key,
+      Buffer.from(ivHex, 'hex')
+    );
 
-    return iv.toString() + ':' + encrypted.toString();
-  } catch (err) {
-    console.error('Encryption failed:', err);
+    const decrypted = Buffer.concat([
+      decipher.update(encryptedText, 'base64'),
+      decipher.final(),
+    ]);
+
+    return decrypted.toString('utf8');
+  } catch {
     return text;
   }
 }
 
-export function decrypt(text: string): string {
-  if (!text) return text;
-  
-  if (!text.includes(':')) {
+export function encrypt(text: string) {
+  if (!text) {
     return text;
   }
-  
-  try {
-    const parts = text.split(':');
-    const ivHex = parts[0];
-    const encryptedText = parts.slice(1).join(':');
 
-    if (ivHex.length !== 32) {
+  return encryptCurrent(text, resolveSecret());
+}
+
+export function decrypt(text: string) {
+  if (!text) {
+    return text;
+  }
+
+  const secret = resolveSecret();
+
+  if (text.startsWith(`${NEW_FORMAT_PREFIX}:`)) {
+    try {
+      return decryptCurrent(text, secret);
+    } catch {
       return text;
     }
-    
-    const iv = CryptoJS.enc.Hex.parse(ivHex);
-    const key = CryptoJS.PBKDF2(secret, 'salt', { keySize: 256 / 32, iterations: 100 });
-
-    const decrypted = CryptoJS.AES.decrypt(encryptedText, key, {
-      iv: iv,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7
-    });
-
-    return decrypted.toString(CryptoJS.enc.Utf8);
-  } catch (err) {
-    console.error('Decryption failed:', err);
-    return text;
   }
+
+  if (text.includes(':')) {
+    return decryptLegacy(text, secret);
+  }
+
+  return text;
 }

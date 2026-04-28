@@ -1,6 +1,6 @@
 import { createClient } from "supabase";
 import nodemailer from "nodemailer";
-import crypto from "node:crypto";
+import crypto, { createHash, createDecipheriv, pbkdf2Sync } from "node:crypto";
 import { Buffer } from "node:buffer";
 
 // --- Types ---
@@ -13,21 +13,76 @@ interface FileRecord {
 
 // --- Encryption Utility ---
 const ENCRYPTION_SECRET = Deno.env.get("ENCRYPTION_SECRET") || "";
+const ENCRYPTION_PREFIX = "enc:v2";
 
-function decrypt(text: string): string {
-  if (!text) return "";
-  if (!text.includes(":")) return text;
+function deriveCurrentKey(secret: string) {
+  if (/^[0-9a-fA-F]{64}$/.test(secret)) {
+    return Buffer.from(secret, "hex");
+  }
+
+  return createHash("sha256").update(secret, "utf8").digest();
+}
+
+function deriveLegacyKey(secret: string) {
+  return pbkdf2Sync(secret, "salt", 100, 32, "sha1");
+}
+
+function decryptCurrent(text: string, secret: string) {
+  const [, , ivPart, encryptedPart, tagPart] = text.split(":");
+  if (!ivPart || !encryptedPart || !tagPart) return text;
+
+  try {
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      deriveCurrentKey(secret),
+      Buffer.from(ivPart, "base64url"),
+    );
+    decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
+
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encryptedPart, "base64url")),
+      decipher.final(),
+    ]);
+
+    return decrypted.toString("utf8");
+  } catch {
+    return text;
+  }
+}
+
+function decryptLegacy(text: string, secret: string): string {
   const parts = text.split(":");
   const ivHex = parts.shift();
   const encryptedText = parts.join(":");
-  if (!ivHex || ivHex.length !== 32) return text;
+  if (!ivHex || ivHex.length !== 32 || !encryptedText) return text;
+
   try {
-    const iv = Buffer.from(ivHex, "hex");
-    const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(ENCRYPTION_SECRET, "hex"), iv);
-    let decrypted = decipher.update(encryptedText, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
-  } catch (_err) { return text; }
+    const decipher = createDecipheriv(
+      "aes-256-cbc",
+      deriveLegacyKey(secret),
+      Buffer.from(ivHex, "hex"),
+    );
+    const decrypted = Buffer.concat([
+      decipher.update(encryptedText, "base64"),
+      decipher.final(),
+    ]);
+
+    return decrypted.toString("utf8");
+  } catch {
+    return text;
+  }
+}
+
+function decrypt(text: string): string {
+  if (!text) return "";
+  if (!ENCRYPTION_SECRET) return text;
+  if (text.startsWith(`${ENCRYPTION_PREFIX}:`)) {
+    return decryptCurrent(text, ENCRYPTION_SECRET);
+  }
+  if (text.includes(":")) {
+    return decryptLegacy(text, ENCRYPTION_SECRET);
+  }
+  return text;
 }
 
 // --- Worker Setup ---
@@ -123,7 +178,7 @@ Deno.serve(async (req) => {
                 file_path: f.path,
                 file_name: f.fileName || "unknown",
                 file_size: f.size || 0,
-                mime_type: f.mime_type || "application/octet-stream",
+                mime_type: f.mimeType || f.mime_type || "application/octet-stream",
               });
             });
           }

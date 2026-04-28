@@ -1,9 +1,16 @@
-import { createClient } from '@/utils/supabase/server'
+import { sanitizeRedirectPath } from '@/lib/auth-redirect'
+import { ensureUserProfile } from '@/lib/user-profile'
+import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json()
+    const body = await request.json()
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const password = typeof body.password === 'string' ? body.password : ''
+    const redirectTo = sanitizeRedirectPath(
+      typeof body.redirectTo === 'string' ? body.redirectTo : undefined
+    )
 
     if (!email || !password) {
       return NextResponse.json(
@@ -13,6 +20,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
+    const adminClient = createAdminClient()
 
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -33,31 +41,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authentication failed' }, { status: 400 })
     }
 
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', authData.user.id)
-      .single()
-
-    if (userError) {
-      console.error('Error fetching user data:', userError)
-      return NextResponse.json({ error: 'Failed to fetch user profile' }, { status: 500 })
-    }
-
-    // Update last login
-    await supabase
-      .from('users')
-      .update({ 
-        last_login: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', authData.user.id)
+    const user = await ensureUserProfile(adminClient, authData.user, {
+      markVerified: true,
+      touchLastLogin: true,
+    })
 
     return NextResponse.json({
       success: true,
       message: 'Signed in successfully!',
       user,
-      session: authData.session
+      redirectTo,
     })
   } catch (error: unknown) {
     console.error('Signin error:', error)

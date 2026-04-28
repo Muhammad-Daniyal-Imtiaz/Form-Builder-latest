@@ -1,48 +1,58 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export default function SignupPage() {
-  const router = useRouter()
+  const [redirectTo, setRedirectTo] = useState('/dashboard')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    setRedirectTo(searchParams.get('redirectTo') || '/dashboard')
+  }, [])
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setError('')
+    setInfo('')
     setLoading(true)
 
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
-    })
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      })
 
-    const data = await res.json()
+      const data = await response.json()
 
-    if (!res.ok) {
-      setError(data.error || 'Signup failed')
+      if (!response.ok) {
+        setError(data.error || 'Signup failed')
+        setLoading(false)
+        return
+      }
+
+      if (data.message?.includes('verify your email')) {
+        setInfo('Check your email to confirm your account, then sign in.')
+        setLoading(false)
+        return
+      }
+
+      window.location.assign(redirectTo)
+    } catch {
+      setError('Signup failed. Please try again.')
       setLoading(false)
-      return
     }
-
-    // If user needs email verification, show message; otherwise redirect
-    if (data.message?.includes('verify your email')) {
-      alert('Please check your email to verify your account.')
-      router.push('/login')
-    } else {
-      router.push('/dashboard')
-    }
-    router.refresh()
   }
 
-  const handleGoogleLogin = async () => {
-    window.location.href = '/api/auth/google'
+  const handleGoogleLogin = () => {
+    window.location.assign(`/api/auth/google?redirectTo=${encodeURIComponent(redirectTo)}`)
   }
 
   return (
@@ -50,6 +60,7 @@ export default function SignupPage() {
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
         <h2 className="text-3xl font-bold text-center">Create Account</h2>
         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+        {info && <p className="text-emerald-600 text-sm text-center">{info}</p>}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -60,7 +71,7 @@ export default function SignupPage() {
               type="text"
               required
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -73,7 +84,7 @@ export default function SignupPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -85,11 +96,12 @@ export default function SignupPage() {
               id="password"
               type="password"
               required
+              minLength={8}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
-            <p className="mt-1 text-xs text-gray-500">At least 6 characters</p>
+            <p className="mt-1 text-xs text-gray-500">At least 8 characters</p>
           </div>
           <button
             type="submit"

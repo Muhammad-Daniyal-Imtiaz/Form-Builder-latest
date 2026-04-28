@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 
@@ -37,6 +36,10 @@ interface CustomStyles {
   formScale: number
   headerAlignment: 'left' | 'center' | 'right'
   coverImageFit: 'cover' | 'contain' | 'fill'
+  layout: 'centered' | 'split' | 'sidebar'
+  layoutSide: 'left' | 'right'
+  secondaryImageUrl: string
+  secondaryImageLink: string
 }
 
 const DEFAULT_STYLES: CustomStyles = {
@@ -71,6 +74,10 @@ const DEFAULT_STYLES: CustomStyles = {
   formScale: 1,
   headerAlignment: 'left',
   coverImageFit: 'cover',
+  layout: 'centered',
+  layoutSide: 'left',
+  secondaryImageUrl: '',
+  secondaryImageLink: '',
 }
 
 interface FormSettings {
@@ -98,8 +105,6 @@ export default function PublicForm({
   customStyles?: Partial<CustomStyles>;
   formSettings?: Partial<FormSettings>;
 }) {
-  const router = useRouter()
-  
   // Sanitize helper
   const sanitize = (text: string) => {
     if (typeof window === 'undefined') return text // Server side
@@ -118,6 +123,8 @@ export default function PublicForm({
   const [error, setError] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string>('')
   const turnstileRef = useRef<TurnstileInstance>(null)
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
+  const requiresCaptcha = Boolean(turnstileSiteKey)
 
   const cs: CustomStyles = { ...DEFAULT_STYLES, ...rawStyles }
 
@@ -229,6 +236,29 @@ export default function PublicForm({
     })
   }
 
+  const isFieldMissing = (field: any) => {
+    const key = field.id || field.label
+    const value = data[key]
+
+    if (field.type === 'checkbox' && !field.options?.length) {
+      return value !== true
+    }
+
+    if (value === undefined || value === null) {
+      return true
+    }
+
+    if (typeof value === 'string') {
+      return value.trim() === ''
+    }
+
+    if (Array.isArray(value)) {
+      return value.length === 0
+    }
+
+    return false
+  }
+
   const handleFileChange = async (fieldId: string, fileList: FileList, isMultiple: boolean) => {
     setLoading(true)
     setError('')
@@ -238,9 +268,11 @@ export default function PublicForm({
         const file = fileList[i]
         const formData = new FormData()
         formData.append('file', file)
+        formData.append('formId', form.id)
         const res = await fetch('/api/upload', { method: 'POST', body: formData })
-        if (!res.ok) throw new Error('File upload failed. Please try again.')
-        uploadedFiles.push(await res.json())
+        const payload = await res.json()
+        if (!res.ok) throw new Error(payload.error || 'File upload failed. Please try again.')
+        uploadedFiles.push(payload)
       }
       if (isMultiple) {
         const currentFiles = files[fieldId] || []
@@ -259,10 +291,9 @@ export default function PublicForm({
   }
 
   const handleNext = () => {
-    // Basic validation for current page
     const missingFields = currentPageFields.filter((f: any) => {
       const key = f.id || f.label
-      return f.required && isFieldVisible(key) && (data[key] === undefined || data[key] === '' || (Array.isArray(data[key]) && data[key].length === 0))
+      return f.required && isFieldVisible(key) && isFieldMissing(f)
     })
 
     if (missingFields.length > 0) {
@@ -287,10 +318,9 @@ export default function PublicForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Final validation
     const missingFields = currentPageFields.filter((f: any) => {
       const key = f.id || f.label
-      return f.required && isFieldVisible(key) && (data[key] === undefined || data[key] === '' || (Array.isArray(data[key]) && data[key].length === 0))
+      return f.required && isFieldVisible(key) && isFieldMissing(f)
     })
 
     if (missingFields.length > 0) {
@@ -696,7 +726,7 @@ export default function PublicForm({
                     </div>
                   )}
 
-                  {field.type === 'checkbox' && (
+                  {field.type === 'checkbox' && field.options?.length ? (
                     <div className="space-y-2.5 mt-1">
                       {field.options?.map((opt: string, i: number) => (
                         <label key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all" style={{ border: `1.5px solid ${cs.inputBorderColor}`, background: cs.inputBg }}>
@@ -708,7 +738,23 @@ export default function PublicForm({
                         </label>
                       ))}
                     </div>
-                  )}
+                  ) : field.type === 'checkbox' ? (
+                    <label
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all"
+                      style={{ border: `1.5px solid ${cs.inputBorderColor}`, background: cs.inputBg }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data[fieldKey])}
+                        onChange={e => handleInputChange(fieldKey, e.target.checked)}
+                        className="w-4 h-4 rounded"
+                        style={{ accentColor: cs.accentColor }}
+                      />
+                      <span style={{ color: cs.bodyText, fontFamily: 'inherit' }}>
+                        {field.placeholder || 'I agree'}
+                      </span>
+                    </label>
+                  ) : null}
 
                   {field.type === 'rating' && (
                     <div className="flex items-center gap-2 py-2">
@@ -816,11 +862,11 @@ export default function PublicForm({
           </motion.div>
         </AnimatePresence>
 
-        {isLastPage && (
+        {isLastPage && requiresCaptcha && (
           <div className="flex justify-center mt-12 mb-6 w-full">
             <Turnstile
               ref={turnstileRef}
-              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+              siteKey={turnstileSiteKey}
               onSuccess={(token) => setTurnstileToken(token)}
               onError={() => {
                 setError('Security check failed. Please refresh and try again.')
@@ -850,7 +896,7 @@ export default function PublicForm({
           {isLastPage ? (
             <button
               type="submit"
-              disabled={loading || !turnstileToken}
+              disabled={loading || (requiresCaptcha && !turnstileToken)}
               className="flex-[2] py-4 px-6 text-lg font-bold transition-all disabled:opacity-50 hover:opacity-95 active:scale-[0.99] shadow-lg"
               style={{ background: cs.accentColor, color: cs.buttonText, fontFamily: 'inherit', borderRadius: btnRadius }}
             >

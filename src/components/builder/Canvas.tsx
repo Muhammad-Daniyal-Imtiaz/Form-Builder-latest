@@ -121,15 +121,22 @@ function SortableFieldItem({ field }: { field: FormField }) {
           
           {['select', 'radio', 'checkbox', 'multiselect'].includes(field.type) && (
             <div className="space-y-3">
-              {field.options?.map((opt, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className={cn(
-                    "w-5 h-5 border-2 border-gray-300 flex items-center justify-center pointer-events-none",
-                    (field.type === 'radio' || field.type === 'select') ? "rounded-full" : "rounded-md"
-                  )} />
-                  <span className="text-sm text-gray-600 font-medium">{opt}</span>
+              {field.type === 'checkbox' && (!field.options || field.options.length === 0) ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-gray-300 rounded-md pointer-events-none" />
+                  <span className="text-sm text-gray-600 font-medium">{field.placeholder || 'I agree'}</span>
                 </div>
-              ))}
+              ) : (
+                field.options?.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-5 h-5 border-2 border-gray-300 flex items-center justify-center pointer-events-none",
+                      (field.type === 'radio' || field.type === 'select') ? "rounded-full" : "rounded-md"
+                    )} />
+                    <span className="text-sm text-gray-600 font-medium">{opt}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
 

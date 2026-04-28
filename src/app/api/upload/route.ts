@@ -1,32 +1,101 @@
-import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+
+import { createAdminClient, createClient } from '@/utils/supabase/server'
+
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
+
+const ALLOWED_FILE_TYPES = new Set([
+  'application/pdf',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/json',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.ms-excel',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+])
+
+function isAllowedFileType(file: File) {
+  if (ALLOWED_FILE_TYPES.has(file.type)) {
+    return true
+  }
+
+  return (
+    file.type.startsWith('image/') ||
+    file.type.startsWith('audio/') ||
+    file.type.startsWith('video/')
+  )
+}
+
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+}
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const adminClient = createAdminClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     const formData = await request.formData()
-    const file = formData.get('file') as File | null
+    const file = formData.get('file')
+    const formId = formData.get('formId')
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    const fileExt = file.name.split('.').pop()
-    const safeFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`
-    const filePath = `${user.id}/${safeFileName}`
+    if (typeof formId !== 'string' || !formId) {
+      return NextResponse.json({ error: 'Form ID is required' }, { status: 400 })
+    }
 
-    // Use admin client or standard client to upload to storage
-    const { data, error } = await supabase.storage
+    const { data: form, error: formError } = await adminClient
+      .from('forms')
+      .select('id, user_id, published')
+      .eq('id', formId)
+      .single()
+
+    if (formError || !form) {
+      return NextResponse.json({ error: 'Form not found' }, { status: 404 })
+    }
+
+    const isOwner = Boolean(user?.id && user.id === form.user_id)
+    if (!form.published && !isOwner) {
+      return NextResponse.json(
+        { error: 'Files can only be uploaded to published forms' },
+        { status: 403 }
+      )
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: 'File is too large. Maximum size is 50MB.' },
+        { status: 400 }
+      )
+    }
+
+    if (!isAllowedFileType(file)) {
+      return NextResponse.json(
+        { error: 'Unsupported file type' },
+        { status: 400 }
+      )
+    }
+
+    const safeFileName = `${crypto.randomUUID()}-${sanitizeFileName(file.name)}`
+    const filePath = `${form.id}/${safeFileName}`
+
+    const { error } = await adminClient.storage
       .from('form-attachments')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: false
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
       })
 
     if (error) {
@@ -34,18 +103,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
     }
 
-    // Get the public URL for the file to be stored in the form data
-    const { data: publicData } = supabase.storage
+    const { data: publicData } = adminClient.storage
       .from('form-attachments')
       .getPublicUrl(filePath)
 
-    return NextResponse.json({
-      url: publicData.publicUrl,
-      path: filePath,
-      fileName: file.name,
-      size: file.size,
-      mimeType: file.type
-    }, { status: 201 })
+    return NextResponse.json(
+      {
+        url: publicData.publicUrl,
+        path: filePath,
+        fileName: file.name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

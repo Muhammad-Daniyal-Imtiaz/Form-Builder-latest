@@ -1,3 +1,4 @@
+import { sanitizeRedirectPath } from '@/lib/auth-redirect'
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -5,7 +6,7 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
-    const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+    const redirectTo = sanitizeRedirectPath(searchParams.get('redirectTo'))
     const requestedScope = searchParams.get('scope')
     
     const baseUrl = new URL(request.url).origin

@@ -1,3 +1,4 @@
+import { ensureUserProfile } from '@/lib/user-profile'
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -38,35 +39,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
-    // Auto-heal: Ensure user exists in our `users` table to prevent foreign key errors
     const adminClient = createAdminClient()
-    const { data: existingUser, error: checkError } = await adminClient
-      .from('users')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Check user error:', checkError)
-    }
-
-    if (!existingUser) {
-      console.log('User profile missing for', user.id, '- synchronizing now.')
-      const { error: syncError } = await adminClient.from('users').upsert({
-        id: user.id,
-        email: user.email!,
-        name: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-        role: 'user',
-        is_active: true,
-        is_verified: !!user.email_confirmed_at,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'email' })
-
-      if (syncError) {
-        console.error('Auto-heal user sync error:', syncError)
-        throw new Error(`Failed to synchronize user profile: ${syncError.message}`)
-      }
-    }
+    await ensureUserProfile(adminClient, user, {
+      markVerified: Boolean(user.email_confirmed_at),
+    })
 
     const { data: form, error } = await supabase
       .from('forms')

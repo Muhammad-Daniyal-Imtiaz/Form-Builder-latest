@@ -1,7 +1,13 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
-import { FormSchema } from '@/lib/form-import-schema'
+import {
+  FormSchema,
+  normalizeFieldForPersistence,
+} from '@/lib/form-import-schema'
 import { validateAndSanitizeFormData } from '@/lib/proto-sanitize'
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export async function POST(request: Request) {
   try {
@@ -22,21 +28,26 @@ export async function POST(request: Request) {
     let parsedData;
     try {
       parsedData = JSON.parse(jsonString)
-    } catch (parseError) {
+    } catch {
       return NextResponse.json({ error: 'Invalid JSON format' }, { status: 400 })
     }
 
-    // 1. Sanitize for prototype pollution
     const sanitizedData = validateAndSanitizeFormData(parsedData)
+    const validationResult = FormSchema.safeParse(sanitizedData)
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid form data',
+          details: validationResult.error.issues,
+        },
+        { status: 400 }
+      )
+    }
 
-    // 2. Validate against schema
-    const validatedData = FormSchema.parse(sanitizedData)
-
-    // 3. Create the Form
+    const validatedData = validationResult.data
     const formTitle = validatedData.name
     const formDesc = validatedData.description || ''
-    
-    // Serialize styles and settings into description (matching BuilderContext format)
+
     let descPayload = formDesc
     if (validatedData.customStyles && Object.keys(validatedData.customStyles).length > 0) {
       descPayload += `|||STYLES:${JSON.stringify(validatedData.customStyles)}`
@@ -60,16 +71,43 @@ export async function POST(request: Request) {
 
     if (formError) throw formError
 
-    // 4. Add fields
-    const fieldsToInsert = validatedData.fields.map((field, index) => ({
-      form_id: form.id,
-      label: field.label,
-      type: field.type,
-      required: field.required,
-      placeholder: field.placeholder || null,
-      options: 'options' in field ? field.options : null,
-      order: index
-    }))
+    const generatedIdMap = new Map<string, string>()
+    validatedData.fields.forEach((field) => {
+      if (!field.id) {
+        return
+      }
+
+      generatedIdMap.set(
+        field.id,
+        UUID_REGEX.test(field.id) ? field.id : crypto.randomUUID()
+      )
+    })
+
+    const fieldsToInsert = validatedData.fields.map((field, index) => {
+      const persistedId = field.id
+        ? generatedIdMap.get(field.id) ?? crypto.randomUUID()
+        : crypto.randomUUID()
+
+      const normalizedField = normalizeFieldForPersistence(field, index)
+      const normalizedLogicRules = normalizedField.logicRules.map((rule) => ({
+        ...rule,
+        id: rule.id && UUID_REGEX.test(rule.id) ? rule.id : crypto.randomUUID(),
+        targetId: generatedIdMap.get(rule.targetId) || rule.targetId,
+      }))
+
+      return {
+        id: persistedId,
+        form_id: form.id,
+        label: normalizedField.label,
+        type: normalizedField.type,
+        required: normalizedField.required,
+        placeholder: normalizedField.placeholder,
+        options: normalizedField.options,
+        logic_rules: normalizedLogicRules,
+        page_index: normalizedField.pageIndex,
+        order: normalizedField.order,
+      }
+    })
 
     const { error: fieldsError } = await supabase
       .from('form_fields')
@@ -84,12 +122,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('Import form error:', error)
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ 
-        error: 'Invalid form data', 
-        details: error.errors 
-      }, { status: 400 })
-    }
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
 }

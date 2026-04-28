@@ -17,13 +17,13 @@ interface BuilderContextType {
   saved: boolean;
   error: string | null;
   activeFieldId: string | null; // For DND / Selection
-  sidebarTab: 'fields' | 'design' | 'settings' | 'share';
+  sidebarTab: 'add' | 'design' | 'settings' | 'share';
   pageCount: number;
   builderViewMode: 'all' | 'single';
   builderActivePage: number;
   
   // Actions
-  setSidebarTab: (tab: 'fields' | 'design' | 'settings' | 'share') => void;
+  setSidebarTab: (tab: 'add' | 'design' | 'settings' | 'share') => void;
   setActiveFieldId: (id: string | null) => void;
   setBuilderViewMode: (mode: 'all' | 'single') => void;
   setBuilderActivePage: (page: number) => void;
@@ -64,18 +64,14 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   const [error, setError] = useState<string | null>(null)
   
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
-  const [sidebarTab, setSidebarTab] = useState<'fields' | 'design' | 'settings' | 'share'>('fields')
+  const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'settings' | 'share'>('add')
   const [builderViewMode, setBuilderViewMode] = useState<'all' | 'single'>('all')
   const [builderActivePage, setBuilderActivePage] = useState(0)
   
   // We use this to debounce auto-saves if we want, but for now manual or on-blur save
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    fetchForm()
-  }, [formId])
-
-  const fetchForm = async () => {
+  const fetchForm = useCallback(async () => {
     try {
       const res = await fetch(`/api/forms/${formId}`)
       if (!res.ok) throw new Error('Failed to fetch form')
@@ -117,7 +113,11 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     } finally {
       setLoading(false)
     }
-  }
+  }, [formId])
+
+  useEffect(() => {
+    void fetchForm()
+  }, [fetchForm])
 
   const applyThemePreset = useCallback((presetId: string) => {
     const preset = PRESET_THEMES[presetId];
@@ -126,14 +126,15 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     }
   }, []);
 
-  const save = async () => {
+  const save = useCallback(async () => {
+    if (!form) return
+
     setSaving(true)
     setError(null)
     try {
-      // Serialize Styles & Settings into the description string
       const descPayload = `${form.description || ''}|||STYLES:${JSON.stringify(customStyles)}|||SETTINGS:${JSON.stringify(formSettings)}`
 
-      await fetch(`/api/forms/${formId}`, {
+      const formResponse = await fetch(`/api/forms/${formId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -144,14 +145,20 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
           cover_image_url: form.cover_image_url
         })
       })
+      if (!formResponse.ok) {
+        throw new Error('Failed to save form details')
+      }
 
-      const res = await fetch(`/api/forms/${formId}/fields`, {
+      const fieldsResponse = await fetch(`/api/forms/${formId}/fields`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields })
       })
 
-      if (!res.ok) throw new Error('Failed to save fields')
+      if (!fieldsResponse.ok) {
+        throw new Error('Failed to save fields')
+      }
+
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err: any) {
@@ -159,9 +166,8 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     } finally {
       setSaving(false)
     }
-  }
+  }, [customStyles, fields, form, formId, formSettings])
 
-  // Auto-save effect
   useEffect(() => {
     if (loading || !form) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -171,7 +177,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [form, fields, customStyles, formSettings])
+  }, [customStyles, fields, form, formSettings, loading, save])
 
 
   const addField = useCallback((type: FieldType) => {

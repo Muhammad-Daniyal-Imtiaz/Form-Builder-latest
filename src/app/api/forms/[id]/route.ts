@@ -1,3 +1,4 @@
+import { getRedisClient } from '@/lib/upstash'
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -85,6 +86,13 @@ export async function PUT(
       throw error
     }
 
+    const redis = getRedisClient()
+    if (redis) {
+      await redis.del(`form:${id}:meta`).catch((cacheError) => {
+        console.error('[Cache] Redis del error:', cacheError)
+      })
+    }
+
     return NextResponse.json(form)
   } catch (error) {
     console.error('PUT form error:', error)
@@ -112,6 +120,14 @@ export async function DELETE(
       .eq('user_id', user.id)
 
     if (error) throw error
+
+    const redis = getRedisClient()
+    if (redis) {
+      await redis.del(`form:${id}:meta`).catch((cacheError) => {
+        console.error('[Cache] Redis del error:', cacheError)
+      })
+    }
+
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('DELETE form error:', error)

@@ -4,7 +4,7 @@ import PublicForm from './PublicForm'
 
 export const revalidate = 0
 
-import { CustomStyles, FormSettings, DEFAULT_STYLES, DEFAULT_SETTINGS } from '@/components/builder/types'
+import { DEFAULT_STYLES, DEFAULT_SETTINGS } from '@/components/builder/types'
 
 export default async function PublicFormPage({
   params,
