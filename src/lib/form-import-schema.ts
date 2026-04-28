@@ -14,9 +14,9 @@ export const FieldLogicRuleSchema = z.object({
 const BaseFieldSchema = z.object({
   id: z.string().min(1).max(100).optional(),
   label: z.string().min(1).max(200),
-  placeholder: z.string().max(300).optional(),
+  placeholder: z.string().max(300).nullable().optional(),
   required: z.boolean().default(false),
-  pageIndex: z.number().int().min(0).max(100).default(0).optional(),
+  pageIndex: z.number().int().min(0).max(100).default(0).nullable().optional(),
   fileMode: z.enum(['upload', 'link']).optional(),
   logicRules: z.array(FieldLogicRuleSchema).max(25).optional(),
   validation: z
@@ -43,7 +43,7 @@ const NumberFieldSchema = BaseFieldSchema.extend({
 
 const TextAreaFieldSchema = BaseFieldSchema.extend({
   type: z.literal('textarea'),
-  rows: z.number().int().min(1).max(20).optional(),
+  rows: z.number().int().min(1).max(20).nullable().optional(),
 })
 
 const OptionSchema = z.string().min(1).max(200)
@@ -65,7 +65,7 @@ const RadioFieldSchema = BaseFieldSchema.extend({
 
 const CheckboxFieldSchema = BaseFieldSchema.extend({
   type: z.literal('checkbox'),
-  options: z.array(OptionSchema).min(1).max(100).optional(),
+  options: z.array(OptionSchema).min(1).max(100).nullable().optional(),
 })
 
 const RatingFieldSchema = BaseFieldSchema.extend({

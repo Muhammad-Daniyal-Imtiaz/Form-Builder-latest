@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import SignOutButton from '@/components/SignOutButton'
 import FormCard from './FormCard'
 
+import ImportButton from './ImportButton'
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -57,15 +59,18 @@ export default async function DashboardPage() {
             <h2 className="text-4xl font-black text-gray-900 tracking-tight">Your Dashboard</h2>
             <p className="mt-2 text-base text-gray-500 font-medium leading-relaxed">Create beautiful forms and analyze responses instantly.</p>
           </div>
-          <Link
-            href="/dashboard/forms/new"
-            className="inline-flex items-center bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all active:scale-95"
-          >
-            <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Create New Form
-          </Link>
+          <div className="flex items-center gap-4">
+            <ImportButton />
+            <Link
+              href="/dashboard/forms/new"
+              className="inline-flex items-center bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all active:scale-95"
+            >
+              <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path>
+              </svg>
+              Create New Form
+            </Link>
+          </div>
         </div>
 
         {forms?.length === 0 ? (

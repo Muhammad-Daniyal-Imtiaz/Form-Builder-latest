@@ -38,7 +38,7 @@ export function validateAndSanitizeFormData(jsonData: any): any {
     // First, sanitize for prototype pollution
     const sanitizedData = sanitizeForPrototypePollution(jsonData);
     
-    // Return sanitized data
+    // Then validate against our schema
     return sanitizedData;
   } catch (error) {
     throw new Error('Invalid form data structure');
