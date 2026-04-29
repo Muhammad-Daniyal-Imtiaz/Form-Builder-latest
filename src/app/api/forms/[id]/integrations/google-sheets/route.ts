@@ -1,3 +1,4 @@
+// Trigger redeploy: Fix Google OAuth environment variable typos and improve error handling
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { getGoogleAccessToken, createGoogleSheet } from '@/lib/google-sheets';
