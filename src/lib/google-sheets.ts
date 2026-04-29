@@ -11,7 +11,7 @@ interface GoogleToken {
 
 export async function getGoogleAccessToken(userId: string): Promise<string | null> {
   const supabase = createAdminClient();
-  
+
   const { data: integration, error } = await supabase
     .from('user_integrations')
     .select('*')
@@ -55,12 +55,22 @@ export async function getGoogleAccessToken(userId: string): Promise<string | nul
 
     if (!response.ok) {
       console.error('Google token refresh failed:', data);
+
+      // If the token is revoked or expired, delete the integration so the user can reconnect
+      if (data.error === 'invalid_grant' || data.error_description?.includes('expired') || data.error_description?.includes('revoked')) {
+        console.warn('Google Refresh Token is invalid. Removing integration for user:', userId);
+        await supabase
+          .from('user_integrations')
+          .delete()
+          .eq('id', integration.id);
+      }
+
       return null;
     }
 
     // Save New Token
     const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
-    
+
     await supabase
       .from('user_integrations')
       .update({
@@ -80,7 +90,7 @@ export async function getGoogleAccessToken(userId: string): Promise<string | nul
 export async function appendToGoogleSheet(accessToken: string, spreadsheetId: string, sheetName: string, values: any[][]) {
   try {
     const url = `${GOOGLE_SHEETS_API_BASE}/${spreadsheetId}/values/${sheetName}:append?valueInputOption=USER_ENTERED`;
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {

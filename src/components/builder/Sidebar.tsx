@@ -105,9 +105,15 @@ export function Sidebar() {
       })
       if (resp.ok) {
         await fetchStatus()
+      } else {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.error || `Action ${action} failed`);
+        // Refresh status anyway to clear any invalid UI states
+        await fetchStatus();
       }
     } catch (err) {
       console.error(`Action ${action} failed:`, err)
+      alert('A network error occurred. Please try again.');
     } finally {
       setLoading(false)
     }

@@ -59,7 +59,7 @@ export async function POST(
 
     if (action === 'create') {
       const accessToken = await getGoogleAccessToken(user.id);
-      if (!accessToken) return NextResponse.json({ error: 'Google account not connected' }, { status: 400 });
+      if (!accessToken) return NextResponse.json({ error: 'Google session expired. Please reconnect.' }, { status: 401 });
 
       const { data: formData } = await supabase.from('forms').select('title').eq('id', id).single();
       const sheet = await createGoogleSheet(accessToken, `${formData?.title || 'Form'} Submissions`);
@@ -97,7 +97,7 @@ export async function POST(
 
     if (action === 'sync-existing') {
       const accessToken = await getGoogleAccessToken(user.id);
-      if (!accessToken) return NextResponse.json({ error: 'Google account not connected' }, { status: 400 });
+      if (!accessToken) return NextResponse.json({ error: 'Google session expired. Please reconnect.' }, { status: 401 });
 
       // 1. Get Form Details
       const { data: form } = await supabase
