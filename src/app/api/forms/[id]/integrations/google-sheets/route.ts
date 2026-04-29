@@ -74,6 +74,8 @@ export async function POST(
           .eq('id', id);
         
         return NextResponse.json({ success: true, sheet });
+      } else {
+        return NextResponse.json({ error: 'Failed to create Google Sheet. Please ensure you have given the necessary permissions.' }, { status: 500 });
       }
     }
 

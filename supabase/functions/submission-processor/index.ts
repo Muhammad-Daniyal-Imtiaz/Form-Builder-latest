@@ -1,6 +1,6 @@
-import { createClient } from "supabase";
-import nodemailer from "nodemailer";
-import crypto, { createHash, createDecipheriv, pbkdf2Sync } from "node:crypto";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import nodemailer from "https://esm.sh/nodemailer@6.9.13";
+import { createHash, createDecipheriv, pbkdf2Sync } from "node:crypto";
 import { Buffer } from "node:buffer";
 
 // --- Types ---
@@ -19,7 +19,6 @@ function deriveCurrentKey(secret: string) {
   if (/^[0-9a-fA-F]{64}$/.test(secret)) {
     return Buffer.from(secret, "hex");
   }
-
   return createHash("sha256").update(secret, "utf8").digest();
 }
 
@@ -28,7 +27,13 @@ function deriveLegacyKey(secret: string) {
 }
 
 function decryptCurrent(text: string, secret: string) {
-  const [, , ivPart, encryptedPart, tagPart] = text.split(":");
+  const parts = text.split(":");
+  if (parts.length < 5) return text;
+  
+  const ivPart = parts[2];
+  const encryptedPart = parts[3];
+  const tagPart = parts[4];
+  
   if (!ivPart || !encryptedPart || !tagPart) return text;
 
   try {
@@ -45,7 +50,8 @@ function decryptCurrent(text: string, secret: string) {
     ]);
 
     return decrypted.toString("utf8");
-  } catch {
+  } catch (err) {
+    console.error("[Decrypt Error] Current:", err.message);
     return text;
   }
 }
@@ -68,7 +74,8 @@ function decryptLegacy(text: string, secret: string): string {
     ]);
 
     return decrypted.toString("utf8");
-  } catch {
+  } catch (err) {
+    console.error("[Decrypt Error] Legacy:", err.message);
     return text;
   }
 }
@@ -85,7 +92,7 @@ function decrypt(text: string): string {
   return text;
 }
 
-// --- Worker Setup ---
+// --- Supabase Setup ---
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -93,8 +100,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const startTime = Date.now();
-  const workerId = crypto.randomUUID(); // Unique ID for this execution
-  console.log(`[Worker] Triggered by: ${body.trigger || 'unknown'} (ID: ${workerId})`);
+  const workerId = crypto.randomUUID();
+  console.log(`[Worker] Started ID: ${workerId}, Trigger: ${body.trigger || 'manual'}`);
 
   let totalProcessed = 0;
 
@@ -108,31 +115,42 @@ Deno.serve(async (req) => {
     const authHeader = { Authorization: `Bearer ${redisToken}` };
     const processingList = `processing:${workerId}`;
 
-    // 🚀 DRAIN LOOP with Crash Safety
-    while (Date.now() - startTime < 120000) {
+    // 🚀 DRAIN LOOP
+    while (Date.now() - startTime < 110000) {
       const batch: any[] = [];
       
-      for (let i = 0; i < 500; i++) {
-        const moveRes = await fetch(`${redisUrl}/lmove/form_submissions_queue/${processingList}/RIGHT/LEFT`, {
+      // Move up to 50 items per inner batch for better performance/reliability
+      for (let i = 0; i < 50; i++) {
+        const moveRes = await fetch(`${redisUrl}/lmove/form_submissions_queue/${encodeURIComponent(processingList)}/RIGHT/LEFT`, {
            method: 'POST',
            headers: authHeader
         });
         const moveData = await moveRes.json();
         if (moveData.result) {
-          batch.push(typeof moveData.result === 'string' ? JSON.parse(moveData.result) : moveData.result);
+          try {
+            const item = typeof moveData.result === 'string' ? JSON.parse(moveData.result) : moveData.result;
+            if (item && item.msg_id) {
+                batch.push(item);
+            }
+          } catch (e) {
+            console.error("[Worker] Failed to parse item:", moveData.result);
+          }
         } else {
           break; // Queue empty
         }
       }
 
       if (batch.length === 0) break;
-      console.log(`[Worker] Safely moved ${batch.length} items to ${processingList}`);
+      console.log(`[Worker] Processing batch of ${batch.length} items`);
 
-      // Step A: Parallel Verification & Status Updates
+      // Parallel Verification
       const verifiedItems = await Promise.all(batch.map(async (item) => {
         const msgKey = `msg:${item.msg_id}`;
-        await fetch(`${redisUrl}/hset/${msgKey}/status/processing`, { headers: authHeader });
+        
+        // Mark as processing in Redis
+        await fetch(`${redisUrl}/hset/${msgKey}/status/processing`, { headers: authHeader }).catch(() => {});
 
+        // CAPTCHA Verification
         if (turnstileSecret && turnstileSecret !== 'your_secret_key_here' && item.captchaToken) {
           try {
             const vRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -142,10 +160,15 @@ Deno.serve(async (req) => {
             });
             const vData = await vRes.json();
             if (!vData.success) {
-              await fetch(`${redisUrl}/hset/${msgKey}/status/rejected`, { headers: authHeader });
+              console.warn(`[Worker] Turnstile failed for msg:${item.msg_id}. Errors: ${JSON.stringify(vData['error-codes'])}`);
+              await fetch(`${redisUrl}/hset/${msgKey}/status/rejected`, { headers: authHeader }).catch(() => {});
               return null;
             }
-          } catch (e) { console.error(`[Worker] Turnstile error:`, e); }
+          } catch (e) { 
+            console.error(`[Worker] Turnstile fetch error for msg:${item.msg_id}:`, e.message);
+            // On network error, we might want to retry or just allow? 
+            // Better to allow and log to avoid blocking valid submissions during Cloudflare outages.
+          }
         }
         return item;
       }));
@@ -165,75 +188,102 @@ Deno.serve(async (req) => {
           .insert(submissionsToInsert)
           .select('id, form_id, data, submitted_at');
 
-        if (bulkSubmitError) throw bulkSubmitError;
+        if (bulkSubmitError) {
+            console.error("[Worker] Bulk insert error:", bulkSubmitError.message);
+            // Move items back or handle error? For now, we throw and let the processingList be cleaned up or persisted.
+            throw bulkSubmitError;
+        }
+
+        if (!insertedSubmissions || insertedSubmissions.length === 0) {
+            console.error("[Worker] Insert returned no data");
+            throw new Error("Bulk insert failed to return rows");
+        }
 
         // STAGE 2: Bulk Insert Files
         const fileRecords: any[] = [];
         insertedSubmissions.forEach((sub, index) => {
-          const originalFiles = validItems[index].files;
-          if (originalFiles?.length > 0) {
+          const originalItem = validItems[index];
+          const originalFiles = originalItem.files;
+          if (originalFiles && Array.isArray(originalFiles) && originalFiles.length > 0) {
             originalFiles.forEach((f: any) => {
               fileRecords.push({
                 submission_id: sub.id,
                 file_path: f.path,
-                file_name: f.fileName || "unknown",
+                file_name: f.fileName || f.name || "unknown",
                 file_size: f.size || 0,
                 mime_type: f.mimeType || f.mime_type || "application/octet-stream",
               });
             });
           }
         });
-        if (fileRecords.length > 0) await supabase.from("files").insert(fileRecords);
+        
+        if (fileRecords.length > 0) {
+            const { error: fileError } = await supabase.from("files").insert(fileRecords);
+            if (fileError) console.error("[Worker] File insert error:", fileError.message);
+        }
 
-        // STAGE 3: Integrations & Completion (DB-Independence Optimization)
+        // STAGE 3: Integrations & Completion
         const uniqueFormIds = [...new Set(validItems.map(i => i.form_id))];
         const configMap = new Map();
 
-        // 🚀 Attempt Redis lookup for all form configs in the batch
-        const redisMgetRes = await fetch(`${redisUrl}/mget/${uniqueFormIds.map(id => `form:${id}:meta`).join('/')}`, { headers: authHeader });
-        const redisMgetData = await redisMgetRes.json();
-        const cachedConfigs = redisMgetData.result || [];
+        // Config Caching
+        try {
+            const redisMgetRes = await fetch(`${redisUrl}/mget/${uniqueFormIds.map(id => `form:${id}:meta`).join('/')}`, { headers: authHeader });
+            const redisMgetData = await redisMgetRes.json();
+            const cachedConfigs = redisMgetData.result || [];
 
-        const missingFormIds: string[] = [];
-        uniqueFormIds.forEach((id, idx) => {
-          const cached = cachedConfigs[idx];
-          if (cached) {
-            configMap.set(id, typeof cached === 'string' ? JSON.parse(cached) : cached);
-          } else {
-            missingFormIds.push(id);
-          }
-        });
+            const missingFormIds: string[] = [];
+            uniqueFormIds.forEach((id, idx) => {
+                const cached = cachedConfigs[idx];
+                if (cached) {
+                    try {
+                        configMap.set(id, typeof cached === 'string' ? JSON.parse(cached) : cached);
+                    } catch { missingFormIds.push(id); }
+                } else { missingFormIds.push(id); }
+            });
 
-        // 🚀 Hit DB only for missing configs
-        if (missingFormIds.length > 0) {
-          const { data: dbConfigs } = await supabase.from("forms").select("*").in("id", missingFormIds);
-          if (dbConfigs) {
-            for (const conf of dbConfigs) {
-              configMap.set(conf.id, conf);
-              // Backfill Redis cache (60s)
-              await fetch(`${redisUrl}/setex/form:${conf.id}:meta/60/${encodeURIComponent(JSON.stringify(conf))}`, { headers: authHeader });
+            if (missingFormIds.length > 0) {
+                const { data: dbConfigs } = await supabase.from("forms").select("*").in("id", missingFormIds);
+                if (dbConfigs) {
+                    for (const conf of dbConfigs) {
+                        configMap.set(conf.id, conf);
+                        await fetch(`${redisUrl}/setex/form:${conf.id}:meta/60/${encodeURIComponent(JSON.stringify(conf))}`, { headers: authHeader }).catch(() => {});
+                    }
+                }
             }
-          }
+        } catch (e) {
+            console.error("[Worker] Config fetch error:", e.message);
+            // Fallback: try to fetch individual configs during integration step
         }
 
+        // Run Integrations
         await Promise.allSettled(insertedSubmissions.map(async (sub, idx) => {
           const formConfig = configMap.get(sub.form_id);
           const originalItem = validItems[idx];
-          if (formConfig) await runIntegrations(formConfig, sub, sub.data);
-          await fetch(`${redisUrl}/hset/msg:${originalItem.msg_id}/status/completed`, { headers: authHeader });
+          if (formConfig) {
+              await runIntegrations(formConfig, sub, sub.data).catch(e => console.error(`[Worker] Integration failed for sub:${sub.id}:`, e.message));
+          }
+          await fetch(`${redisUrl}/hset/msg:${originalItem.msg_id}/status/completed`, { headers: authHeader }).catch(() => {});
         }));
 
         totalProcessed += validItems.length;
       }
 
-      await fetch(`${redisUrl}/del/${processingList}`, { headers: authHeader });
+      // Cleanup processing list after successful batch processing
+      await fetch(`${redisUrl}/del/${encodeURIComponent(processingList)}`, { headers: authHeader }).catch(() => {});
     }
 
-    return new Response(JSON.stringify({ success: true, processed: totalProcessed }));
+    console.log(`[Worker] Finished. Processed ${totalProcessed} items.`);
+    return new Response(JSON.stringify({ success: true, processed: totalProcessed }), {
+        headers: { "Content-Type": "application/json" }
+    });
 
   } catch (err) {
-    console.error("[Worker] Global Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("[Worker] Global Error:", err.message);
+    return new Response(JSON.stringify({ error: err.message }), { 
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+    });
   }
 });
 
@@ -247,7 +297,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
         const token = decrypt(formConfig.slack_bot_token);
         const { data: flds } = await supabase.from('form_fields').select('id, label').eq('form_id', formConfig.id);
         const blocks = [
-          { type: "header", text: { type: "plain_text", text: "New Submission (Buffered)" } },
+          { type: "header", text: { type: "plain_text", text: "New Submission" } },
           { type: "section", text: { type: "mrkdwn", text: `*Form:* ${formConfig.title}\n*ID:* ${submission.id}` } }
         ];
         flds?.forEach(f => {
@@ -260,7 +310,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
           body: JSON.stringify({ channel: formConfig.slack_channel_id, blocks })
         });
         if (res.ok) await supabase.from('submissions').update({ slack_synced: true }).eq('id', submission.id);
-      } catch (e) { console.error("[Slack Error]", e); }
+      } catch (e) { console.error("[Slack Error]", e.message); }
     })());
   }
 
@@ -275,7 +325,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
           body: JSON.stringify({ submission_id: submission.id, ...data })
         });
         if (res.ok) await supabase.from('submissions').update({ zapier_synced: true }).eq('id', submission.id);
-      } catch (e) { console.error("[Zapier Error]", e); }
+      } catch (e) { console.error("[Zapier Error]", e.message); }
     })());
   }
 
@@ -290,7 +340,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
           body: JSON.stringify({ records: [{ fields: { ...data, "Submission Date": submission.submitted_at } }] })
         });
         if (res.ok) await supabase.from('submissions').update({ airtable_synced: true }).eq('id', submission.id);
-      } catch (e) { console.error("[Airtable Error]", e); }
+      } catch (e) { console.error("[Airtable Error]", e.message); }
     })());
   }
 
@@ -306,12 +356,13 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
           auth: { user: formConfig.notification_email, pass },
         });
         await transporter.sendMail({
-          from: `"Form Worker" <${formConfig.notification_email}>`,
+          from: `"FormFlow AI" <${formConfig.notification_email}>`,
           to: formConfig.email_to_list || formConfig.notification_email,
-          subject: `🛎️ New Async Submission: ${formConfig.title}`,
-          html: `<p>New submission received for ${formConfig.title}.</p><pre>${JSON.stringify(data, null, 2)}</pre>`
+          subject: `New Submission: ${formConfig.title}`,
+          html: `<p>You received a new submission for <b>${formConfig.title}</b>.</p><pre>${JSON.stringify(data, null, 2)}</pre>`
         });
-      } catch (e) { console.error("[Email Error]", e); }
+        await supabase.from('submissions').update({ email_synced: true }).eq('id', submission.id);
+      } catch (e) { console.error("[Email Error]", e.message); }
     })());
   }
 
@@ -330,7 +381,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
                 });
                 if (res.ok) await supabase.from('submissions').update({ google_synced: true }).eq('id', submission.id);
             }
-        } catch (e) { console.error("[Google Sheets Error]", e); }
+        } catch (e) { console.error("[Google Sheets Error]", e.message); }
     })());
   }
 
