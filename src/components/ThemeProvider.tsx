@@ -16,7 +16,7 @@ export type Theme = {
   lightMode?: boolean
   icon: React.ReactNode
 }
-
+export const themes: Theme[] = [
 // --- PROFESSIONAL LIGHT (PRIORITY) ---
   { 
     id: 'minimalist', 
