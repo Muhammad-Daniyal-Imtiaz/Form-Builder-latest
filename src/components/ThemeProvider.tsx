@@ -17,58 +17,71 @@ export type Theme = {
   icon: React.ReactNode
 }
 
-export const themes: Theme[] = [
-  // --- PROFESSIONAL DARK ---
-  { 
-    id: 'midnight', 
-    name: 'Midnight Pro', 
-    primary: '#6366f1', 
-    secondary: '#a855f7', 
-    bg: '#050507', 
-    card: 'rgba(255, 255, 255, 0.03)', 
-    border: 'rgba(255, 255, 255, 0.08)', 
-    text: '#ffffff', 
-    textMuted: '#94a3b8', 
-    icon: <Moon className="w-4 h-4" /> 
-  },
-  { 
-    id: 'slate', 
-    name: 'Slate Enterprise', 
-    primary: '#94a3b8', 
-    secondary: '#cbd5e1', 
-    bg: '#0f172a', 
-    card: 'rgba(255, 255, 255, 0.02)', 
-    border: 'rgba(255, 255, 255, 0.06)', 
-    text: '#f1f5f9', 
-    textMuted: '#64748b', 
-    icon: <Laptop className="w-4 h-4" /> 
-  },
-  { 
-    id: 'onyx', 
-    name: 'Onyx Stealth', 
-    primary: '#ffffff', 
-    secondary: '#404040', 
-    bg: '#000000', 
-    card: 'rgba(255, 255, 255, 0.05)', 
-    border: 'rgba(255, 255, 255, 0.1)', 
-    text: '#ffffff', 
-    textMuted: '#a3a3a3', 
-    icon: <Shield className="w-4 h-4" /> 
-  },
-
-  // --- PROFESSIONAL LIGHT ---
+// --- PROFESSIONAL LIGHT (PRIORITY) ---
   { 
     id: 'minimalist', 
     name: 'Pure Minimal', 
     primary: '#000000', 
     secondary: '#404040', 
     bg: '#ffffff', 
-    card: 'rgba(0, 0, 0, 0.02)', 
-    border: 'rgba(0, 0, 0, 0.06)', 
-    text: '#000000', 
-    textMuted: '#737373', 
+    card: '#f9fafb', 
+    border: '#f3f4f6', 
+    text: '#111827', 
+    textMuted: '#6b7280', 
     lightMode: true, 
     icon: <Sun className="w-4 h-4" /> 
+  },
+  { 
+    id: 'ivory', 
+    name: 'Ivory Elegance', 
+    primary: '#c2a35d', 
+    secondary: '#e2d1a8', 
+    bg: '#fcfaf2', 
+    card: '#ffffff', 
+    border: '#e7e3d1', 
+    text: '#2d2926', 
+    textMuted: '#7c7467', 
+    lightMode: true, 
+    icon: <Crown className="w-4 h-4" /> 
+  },
+  { 
+    id: 'sky', 
+    name: 'Sky Breeze', 
+    primary: '#0ea5e9', 
+    secondary: '#7dd3fc', 
+    bg: '#f0f9ff', 
+    card: '#ffffff', 
+    border: '#e0f2fe', 
+    text: '#0c4a6e', 
+    textMuted: '#7dd3fc', 
+    lightMode: true, 
+    icon: <Droplets className="w-4 h-4" /> 
+  },
+  { 
+    id: 'lavender', 
+    name: 'Lavender Mist', 
+    primary: '#8b5cf6', 
+    secondary: '#c4b5fd', 
+    bg: '#f5f3ff', 
+    card: '#ffffff', 
+    border: '#ede9fe', 
+    text: '#4c1d95', 
+    textMuted: '#a78bfa', 
+    lightMode: true, 
+    icon: <Sparkles className="w-4 h-4" /> 
+  },
+  { 
+    id: 'mint', 
+    name: 'Mint Fresh', 
+    primary: '#10b981', 
+    secondary: '#6ee7b7', 
+    bg: '#f0fdf4', 
+    card: '#ffffff', 
+    border: '#dcfce7', 
+    text: '#064e3b', 
+    textMuted: '#34d399', 
+    lightMode: true, 
+    icon: <Droplets className="w-4 h-4" /> 
   },
   { 
     id: 'soft-slate', 
@@ -84,55 +97,53 @@ export const themes: Theme[] = [
     icon: <Laptop className="w-4 h-4" /> 
   },
 
-  // --- PREMIUM ACCENTS ---
+  // --- PROFESSIONAL DARK (SOFTER) ---
+  { 
+    id: 'midnight', 
+    name: 'Midnight Pro', 
+    primary: '#6366f1', 
+    secondary: '#a855f7', 
+    bg: '#0f111a', 
+    card: 'rgba(255, 255, 255, 0.04)', 
+    border: 'rgba(255, 255, 255, 0.08)', 
+    text: '#ffffff', 
+    textMuted: '#94a3b8', 
+    icon: <Moon className="w-4 h-4" /> 
+  },
+  { 
+    id: 'slate', 
+    name: 'Slate Enterprise', 
+    primary: '#94a3b8', 
+    secondary: '#cbd5e1', 
+    bg: '#1e293b', 
+    card: 'rgba(255, 255, 255, 0.03)', 
+    border: 'rgba(255, 255, 255, 0.07)', 
+    text: '#f1f5f9', 
+    textMuted: '#94a3b8', 
+    icon: <Laptop className="w-4 h-4" /> 
+  },
   { 
     id: 'luxury', 
     name: 'Executive Gold', 
     primary: '#d4af37', 
     secondary: '#f1c40f', 
-    bg: '#0a0904', 
-    card: 'rgba(212, 175, 55, 0.03)', 
+    bg: '#141410', 
+    card: 'rgba(212, 175, 55, 0.04)', 
     border: 'rgba(212, 175, 55, 0.15)', 
     text: '#ffffff', 
     textMuted: '#8b7d4b', 
     icon: <Crown className="w-4 h-4" /> 
   },
   { 
-    id: 'emerald', 
-    name: 'Emerald Pro', 
-    primary: '#10b981', 
-    secondary: '#34d399', 
-    bg: '#060d0a', 
-    card: 'rgba(16, 185, 129, 0.02)', 
-    border: 'rgba(16, 185, 129, 0.08)', 
-    text: '#ffffff', 
-    textMuted: '#064e3b', 
-    icon: <Diamond className="w-4 h-4" /> 
-  },
-  { 
-    id: 'ocean', 
-    name: 'Nordic Blue', 
-    primary: '#38bdf8', 
-    secondary: '#0ea5e9', 
-    bg: '#020617', 
-    card: 'rgba(56, 189, 248, 0.02)', 
-    border: 'rgba(56, 189, 248, 0.08)', 
-    text: '#ffffff', 
-    textMuted: '#0c4a6e', 
-    icon: <Droplets className="w-4 h-4" /> 
-  },
-
-  // --- VIBRANT (STILL PRO) ---
-  { 
     id: 'nebula', 
     name: 'Nebula Pro', 
     primary: '#8b5cf6', 
     secondary: '#d946ef', 
-    bg: '#0a0515', 
-    card: 'rgba(139, 92, 246, 0.03)', 
+    bg: '#120d1d', 
+    card: 'rgba(139, 92, 246, 0.04)', 
     border: 'rgba(139, 92, 246, 0.1)', 
     text: '#ffffff', 
-    textMuted: '#4c1d95', 
+    textMuted: '#a78bfa', 
     icon: <Sparkles className="w-4 h-4" /> 
   },
   { 
