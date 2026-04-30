@@ -323,14 +323,29 @@ export function Canvas() {
               </>
             )}
 
-            {/* Canvas Toolbar */}
+            {/* Canvas Toolbar (Neutralized from Theme) */}
             <div 
-              className="flex items-center justify-between px-8 py-3 border-b backdrop-blur-xl sticky top-0 z-30 transition-colors"
-              style={{ backgroundColor: `${currentTheme.bg}80`, borderColor: currentTheme.border }}
+              className="flex items-center justify-between px-8 py-3 border-b bg-white/80 backdrop-blur-xl sticky top-0 z-30 border-gray-100"
             >
-              <div className="flex p-1 rounded-xl shadow-sm border" style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}>
-                <button onClick={() => setBuilderViewMode('all')} className={cn("px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", builderViewMode === 'all' ? "shadow-md" : "text-gray-400")} style={{ backgroundColor: builderViewMode === 'all' ? currentTheme.primary : 'transparent', color: builderViewMode === 'all' ? (currentTheme.lightMode ? 'white' : 'black') : currentTheme.textMuted }}>All Pages</button>
-                <button onClick={() => setBuilderViewMode('single')} className={cn("px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", builderViewMode === 'single' ? "shadow-md" : "text-gray-400")} style={{ backgroundColor: builderViewMode === 'single' ? currentTheme.primary : 'transparent', color: builderViewMode === 'single' ? (currentTheme.lightMode ? 'white' : 'black') : currentTheme.textMuted }}>Single Step</button>
+              <div className="flex p-1 rounded-xl shadow-sm border border-gray-100 bg-gray-50">
+                <button 
+                  onClick={() => setBuilderViewMode('all')} 
+                  className={cn(
+                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", 
+                    builderViewMode === 'all' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  All Pages
+                </button>
+                <button 
+                  onClick={() => setBuilderViewMode('single')} 
+                  className={cn(
+                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", 
+                    builderViewMode === 'single' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  Single Step
+                </button>
               </div>
 
               {builderViewMode === 'single' && (
