@@ -26,6 +26,12 @@ export default function Home() {
           >
             Create Account
           </Link>
+          <Link
+            href="/pricing"
+            className="w-full sm:w-auto px-8 py-4 bg-transparent text-gray-500 hover:text-indigo-600 font-bold rounded-2xl transition-all"
+          >
+            View Pricing
+          </Link>
         </div>
 
         <div className="pt-12 grid grid-cols-2 md:grid-cols-3 gap-6 text-sm text-gray-500 font-medium">
