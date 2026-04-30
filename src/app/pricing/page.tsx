@@ -1,5 +1,5 @@
 'use client'
-
+//Check this code.
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Check, Star, ArrowRight, Sparkles, Shield, Zap, Database, Globe, Cpu, MessageSquare } from 'lucide-react'
