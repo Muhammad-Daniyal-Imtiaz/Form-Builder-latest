@@ -139,18 +139,19 @@ export function FieldSettingsPanel() {
                 <div className="space-y-2">
                   {activeField.options?.map((opt, idx) => (
                     <div key={idx} className="flex items-center gap-2 group">
-                      <div className="p-1.5 text-gray-300 cursor-grab">
+                      <div className="p-1.5 text-gray-400 cursor-grab">
                         <GripVertical className="w-3.5 h-3.5" />
                       </div>
                       <input
                         type="text"
                         value={opt}
                         onChange={(e) => updateOption(activeField.id, idx, e.target.value)}
-                        className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                        className="flex-1 px-3 py-1.5 border rounded-lg text-sm font-medium outline-none transition-all"
+                        style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
                       />
                       <button
                         onClick={() => removeOption(activeField.id, idx)}
-                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -159,7 +160,8 @@ export function FieldSettingsPanel() {
 
                   <button
                     onClick={() => addOption(activeField.id)}
-                    className="w-full mt-2 flex items-center justify-center gap-2 py-2 border-2 border-dashed border-indigo-100 rounded-lg text-indigo-500 hover:bg-indigo-50 hover:border-indigo-200 transition-all text-xs font-bold uppercase tracking-widest"
+                    className="w-full mt-2 flex items-center justify-center gap-2 py-2 border-2 border-dashed rounded-lg transition-all text-xs font-bold uppercase tracking-widest"
+                    style={{ color: currentTheme.primary, borderColor: `${currentTheme.primary}40` }}
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Option
@@ -170,30 +172,32 @@ export function FieldSettingsPanel() {
 
             {/* Logic & Branching Manager */}
             {['text', 'email', 'number', 'select', 'radio', 'checkbox'].includes(activeField.type) && (
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-6 border-t" style={{ borderColor: currentTheme.border }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <GitBranch className="w-4 h-4 text-indigo-500" />
-                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+                  <GitBranch className="w-4 h-4" style={{ color: currentTheme.secondary }} />
+                  <label className="block text-[10px] font-extrabold uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>
                     Logic & Branching
                   </label>
                 </div>
                 
                 <div className="space-y-3">
                   {activeField.logicRules?.map((rule) => (
-                    <div key={rule.id} className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2 relative group">
+                    <div key={rule.id} className="p-3 border rounded-xl space-y-2 relative group" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
                       <button
                         onClick={() => removeLogicRule(rule.id)}
-                        className="absolute -top-2 -right-2 p-1 bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full shadow-sm border border-gray-200 opacity-0 group-hover:opacity-100 transition-all z-10"
+                        className="absolute -top-2 -right-2 p-1 rounded-full shadow-sm border opacity-0 group-hover:opacity-100 transition-all z-10"
+                        style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.textMuted }}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
 
-                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                      <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: currentTheme.textMuted }}>
                         <span>If answer</span>
                         <select
                           value={rule.condition}
                           onChange={(e) => updateLogicRule(rule.id, { condition: e.target.value })}
-                          className="bg-white border border-gray-200 rounded px-1 py-0.5 outline-none text-indigo-600"
+                          className="border rounded px-1 py-0.5 outline-none"
+                          style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.primary }}
                         >
                           <option value="equals">is exactly</option>
                           <option value="not_equals">is not</option>
@@ -206,15 +210,17 @@ export function FieldSettingsPanel() {
                         value={rule.value}
                         onChange={(e) => updateLogicRule(rule.id, { value: e.target.value })}
                         placeholder="Expected value..."
-                        className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-sm outline-none focus:border-indigo-400 transition-colors"
+                        className="w-full px-2 py-1.5 border rounded text-sm outline-none transition-colors"
+                        style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
                       />
 
-                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 pt-1">
+                      <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: currentTheme.textMuted }}>
                         <span>Then</span>
                         <select
                           value={rule.action}
                           onChange={(e) => updateLogicRule(rule.id, { action: e.target.value })}
-                          className="bg-white border border-gray-200 rounded px-1 py-0.5 outline-none text-pink-600 font-bold"
+                          className="border rounded px-1 py-0.5 outline-none font-bold"
+                          style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.secondary }}
                         >
                           <option value="show">Show</option>
                           <option value="hide">Hide</option>
@@ -225,7 +231,8 @@ export function FieldSettingsPanel() {
                       <select
                         value={rule.targetId}
                         onChange={(e) => updateLogicRule(rule.id, { targetId: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-sm outline-none focus:border-pink-400 transition-colors"
+                        className="w-full px-2 py-1.5 border rounded text-sm outline-none transition-colors"
+                        style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
                       >
                         <option value="">Select target field...</option>
                         {fields.filter(f => f.id !== activeField.id).map(f => (
@@ -237,7 +244,8 @@ export function FieldSettingsPanel() {
 
                   <button
                     onClick={addLogicRule}
-                    className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-lg text-xs font-bold transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-colors"
+                    style={{ backgroundColor: `${currentTheme.primary}10`, color: currentTheme.primary }}
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Logic Rule

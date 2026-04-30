@@ -283,11 +283,10 @@ export function Canvas() {
         </div>
       )}
 
-      {/* --- FORM SIDE --- */}
       <div className={cn(
-        "flex-1 relative z-10 flex flex-col items-center transition-colors duration-500",
+        "flex-1 relative z-10 flex flex-col items-center",
         (isSplit || isSidebar) ? "min-h-full" : "w-full"
-      )} style={{ backgroundColor: (isSplit || isSidebar) ? currentTheme.bg : 'transparent' }}>
+      )}>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -300,10 +299,10 @@ export function Canvas() {
           }} 
           className={cn(
             "relative transition-all duration-300",
-            (isSplit || isSidebar) ? "bg-white h-full" : "shadow-2xl overflow-hidden"
+            (isSplit || isSidebar) ? "h-full" : "shadow-2xl overflow-hidden"
           )}
         >
-          <div className="max-w-4xl mx-auto w-full flex flex-col h-full transition-colors duration-500" style={{ backgroundColor: currentTheme.bg }}>
+          <div className="max-w-4xl mx-auto w-full flex flex-col h-full" style={{ backgroundColor: customStyles.bodyBg }}>
             {/* Classic Header (Only for Centered Layout) */}
             {!isSplit && !isSidebar && (
               <>

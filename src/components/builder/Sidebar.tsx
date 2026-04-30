@@ -1445,50 +1445,54 @@ export function Sidebar() {
                 </div>
                 
                 <div className="relative">
-                  <textarea
-                    readOnly
-                    rows={4}
-                    value={`<iframe \n  src="${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}" \n  width="100%" \n  height="600px" \n  frameborder="0" \n  style="border:none; border-radius:12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">\n</iframe>`}
-                    className="w-full p-3 bg-white border border-gray-200 rounded-xl text-[10px] font-mono text-gray-500 outline-none resize-none leading-relaxed"
-                  />
-                  <button 
-                    onClick={() => {
-                      const code = `<iframe src="${window.location.origin}/f/${form?.id}" width="100%" height="600px" frameborder="0" style="border:none; border-radius:12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`;
-                      navigator.clipboard.writeText(code)
-                      alert('Embed code copied!')
-                    }}
-                    className="absolute right-3 bottom-3 p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all shadow-sm"
-                    title="Copy Code"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200/50">
-                  <div className="flex items-center gap-2 text-pink-600 mb-2">
-                    <Code className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Script Embed</span>
-                  </div>
-                  <div className="relative">
                     <textarea
                       readOnly
                       rows={4}
-                      value={`<div id="form-container"></div>\n<script>\n  (function() {\n    const div = document.getElementById('form-container');\n    const ifr = document.createElement('iframe');\n    ifr.src = "${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}";\n    ifr.style.width = '100%';\n    ifr.style.height = '600px';\n    ifr.style.border = 'none';\n    div.appendChild(ifr);\n  })();\n</script>`}
-                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-[10px] font-mono text-gray-500 outline-none resize-none leading-relaxed"
+                      value={`<iframe \n  src="${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}" \n  width="100%" \n  height="600px" \n  frameborder="0" \n  style="border:none; border-radius:12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">\n</iframe>`}
+                      className="w-full p-3 border rounded-xl text-[10px] font-mono outline-none resize-none leading-relaxed"
+                      style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border, color: currentTheme.textMuted }}
                     />
                     <button 
                       onClick={() => {
-                        const code = `<div id="form-container"></div><script>(function(){const div=document.getElementById('form-container');const ifr=document.createElement('iframe');ifr.src="${window.location.origin}/f/${form?.id}";ifr.style.width='100%';ifr.style.height='600px';ifr.style.border='none';div.appendChild(ifr);})();</script>`;
+                        const code = `<iframe src="${window.location.origin}/f/${form?.id}" width="100%" height="600px" frameborder="0" style="border:none; border-radius:12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`;
                         navigator.clipboard.writeText(code)
-                        alert('Script code copied!')
+                        alert('Embed code copied!')
                       }}
-                      className="absolute right-3 bottom-3 p-2 bg-pink-50 text-pink-600 hover:bg-pink-600 hover:text-white rounded-lg transition-all shadow-sm"
+                      className="absolute right-3 bottom-3 p-2 rounded-lg transition-all shadow-sm"
+                      style={{ backgroundColor: currentTheme.primary, color: currentTheme.lightMode ? 'white' : 'black' }}
                       title="Copy Code"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+
+                  <div className="mt-4 pt-4 border-t" style={{ borderColor: currentTheme.border }}>
+                    <div className="flex items-center gap-2 mb-2" style={{ color: currentTheme.secondary }}>
+                      <Code className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Script Embed</span>
+                    </div>
+                    <div className="relative">
+                      <textarea
+                        readOnly
+                        rows={4}
+                        value={`<div id="form-container"></div>\n<script>\n  (function() {\n    const div = document.getElementById('form-container');\n    const ifr = document.createElement('iframe');\n    ifr.src = "${typeof window !== 'undefined' ? window.location.origin : ''}/f/${form?.id}";\n    ifr.style.width = '100%';\n    ifr.style.height = '600px';\n    ifr.style.border = 'none';\n    div.appendChild(ifr);\n  })();\n</script>`}
+                        className="w-full p-3 border rounded-xl text-[10px] font-mono outline-none resize-none leading-relaxed"
+                        style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border, color: currentTheme.textMuted }}
+                      />
+                      <button 
+                        onClick={() => {
+                          const code = `<div id="form-container"></div><script>(function(){const div=document.getElementById('form-container');const ifr=document.createElement('iframe');ifr.src="${window.location.origin}/f/${form?.id}";ifr.style.width='100%';ifr.style.height='600px';ifr.style.border='none';div.appendChild(ifr);})();</script>`;
+                          navigator.clipboard.writeText(code)
+                          alert('Script code copied!')
+                        }}
+                        className="absolute right-3 bottom-3 p-2 rounded-lg transition-all shadow-sm"
+                        style={{ backgroundColor: currentTheme.secondary, color: currentTheme.lightMode ? 'white' : 'black' }}
+                        title="Copy Code"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
               </div>
             </div>
           </motion.div>
