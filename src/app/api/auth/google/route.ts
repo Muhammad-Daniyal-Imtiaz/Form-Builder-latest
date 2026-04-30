@@ -9,12 +9,15 @@ export async function GET(request: Request) {
     const redirectTo = sanitizeRedirectPath(searchParams.get('redirectTo'))
     const requestedScope = searchParams.get('scope')
     
-    const baseUrl = new URL(request.url).origin
+    // Robust Base URL detection for Cloudflare/Production
+    const requestUrl = new URL(request.url)
+    const protocol = requestUrl.hostname === 'localhost' ? 'http' : 'https'
+    const baseUrl = `${protocol}://${requestUrl.host}`
 
     // Default scopes for login
     let scopes = 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid'
     
-    // Add spreadsheets scope ONLY if explicitly requested (e.g., from the Integration settings)
+    // Add spreadsheets scope ONLY if explicitly requested
     if (requestedScope === 'sheets') {
       scopes += ' https://www.googleapis.com/auth/spreadsheets'
     }

@@ -10,6 +10,21 @@ import { useTheme } from '@/components/ThemeProvider'
 export default function Home() {
   const { currentTheme } = useTheme()
 
+  React.useEffect(() => {
+    // Catch-all for redirected auth codes that land on the home page
+    const searchParams = new URLSearchParams(window.location.search)
+    const code = searchParams.get('code')
+    const error = searchParams.get('error')
+    
+    if (code || error) {
+      const callbackUrl = new URL('/api/auth/callback', window.location.origin)
+      searchParams.forEach((value, key) => {
+        callbackUrl.searchParams.set(key, value)
+      })
+      window.location.assign(callbackUrl.toString())
+    }
+  }, [])
+
   return (
     <div className="min-h-screen relative overflow-x-hidden transition-colors duration-500">
       {/* Premium Background Mesh */}
