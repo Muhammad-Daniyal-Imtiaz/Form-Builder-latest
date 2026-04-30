@@ -132,6 +132,7 @@ export function FieldSettingsPanel() {
 
             {/* Options Manager */}
             {['select', 'multiselect', 'radio', 'checkbox'].includes(activeField.type) && (
+              <div className="pt-6 border-t" style={{ borderColor: currentTheme.border }}>
                 <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-3" style={{ color: currentTheme.textMuted }}>
                   Choices
                 </label>

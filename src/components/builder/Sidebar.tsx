@@ -275,6 +275,7 @@ export function Sidebar() {
             <div>
               <h3 className="text-[11px] font-extrabold uppercase tracking-widest mb-3 px-1" style={{ color: currentTheme.textMuted }}>Basic Fields</h3>
               <div className="grid grid-cols-1 gap-2">
+                {FIELD_TOOLS.slice(0, 4).map((tool) => (
                   <button
                     key={tool.type}
                     onClick={() => addField(tool.type)}
@@ -285,8 +286,8 @@ export function Sidebar() {
                       {tool.icon}
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-gray-800">{tool.label}</div>
-                      <div className="text-xs text-gray-400">{tool.desc}</div>
+                      <div className="text-sm font-semibold" style={{ color: currentTheme.text }}>{tool.label}</div>
+                      <div className="text-xs" style={{ color: currentTheme.textMuted }}>{tool.desc}</div>
                     </div>
                   </button>
                 ))}
@@ -296,6 +297,7 @@ export function Sidebar() {
             <div>
               <h3 className="text-[11px] font-extrabold uppercase tracking-widest mb-3 px-1" style={{ color: currentTheme.textMuted }}>Choices & Media</h3>
               <div className="grid grid-cols-1 gap-2">
+                {FIELD_TOOLS.slice(4).map((tool) => (
                   <button
                     key={tool.type}
                     onClick={() => addField(tool.type)}
@@ -306,8 +308,8 @@ export function Sidebar() {
                       {tool.icon}
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-gray-800">{tool.label}</div>
-                      <div className="text-xs text-gray-400">{tool.desc}</div>
+                      <div className="text-sm font-semibold" style={{ color: currentTheme.text }}>{tool.label}</div>
+                      <div className="text-xs" style={{ color: currentTheme.textMuted }}>{tool.desc}</div>
                     </div>
                   </button>
                 ))}
