@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useMemo } from 'react'
 import Link from 'next/link'
 import { cn } from '@/utils/cn'
-import { Database, Download, ExternalLink, ArrowLeft, Check, Zap, Table as TableIcon } from 'lucide-react'
+import { Database, Download, ExternalLink, ArrowLeft, Check, Zap, Table as TableIcon, Filter, X, Search, Calendar } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 
 const LoaderIcon = ({ className }: { className?: string }) => (
@@ -25,6 +25,11 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   const [zapSyncing, setZapSyncing] = useState(false)
   const [airSyncing, setAirSyncing] = useState(false)
   const { currentTheme } = useTheme()
+
+  // Filtering State
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const [globalSearch, setGlobalSearch] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -73,6 +78,38 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       setLoading(false)
     }
   }
+
+  // --- FILTER LOGIC ---
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter(sub => {
+      // Global Search
+      if (globalSearch) {
+        const searchStr = JSON.stringify(sub.data).toLowerCase()
+        if (!searchStr.includes(globalSearch.toLowerCase())) return false
+      }
+
+      // Individual Field Filters
+      for (const [fieldId, filterValue] of Object.entries(filters)) {
+        if (!filterValue) continue
+        
+        const subValue = String(sub.data[fieldId] || '').toLowerCase()
+        if (!subValue.includes(filterValue.toLowerCase())) return false
+      }
+
+      return true
+    })
+  }, [submissions, filters, globalSearch])
+
+  const updateFilter = (fieldId: string, value: string) => {
+    setFilters(prev => ({ ...prev, [fieldId]: value }))
+  }
+
+  const clearFilters = () => {
+    setFilters({})
+    setGlobalSearch('')
+  }
+
+  const activeFiltersCount = Object.values(filters).filter(Boolean).length + (globalSearch ? 1 : 0)
 
   const handleGoogleSync = async () => {
     if (!sheetStatus?.sheetId) return
@@ -177,13 +214,13 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   const headers = form?.form_fields?.map((f: any) => f.label) || []
 
   const exportToCSV = () => {
-    if (!submissions.length || !form) return
+    if (!filteredSubmissions.length || !form) return
 
     // 1. Prepare Headers
     const csvHeaders = ['Date Submitted', ...headers]
     
     // 2. Prepare Rows
-    const rows = submissions.map(sub => {
+    const rows = filteredSubmissions.map(sub => {
       const rowData = [new Date(sub.submitted_at).toLocaleString()]
       
       form.form_fields.forEach((field: any) => {
@@ -214,7 +251,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     
-    const fileName = `${form.title?.replace(/\s+/g, '_') || 'Form'}_Submissions_${new Date().toISOString().split('T')[0]}.csv`
+    const fileName = `${form.title?.replace(/\s+/g, '_') || 'Form'}_Filtered_Submissions_${new Date().toISOString().split('T')[0]}.csv`
     
     link.setAttribute('href', url)
     link.setAttribute('download', fileName)
@@ -222,7 +259,6 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    link.click()
   }
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading submissions...</div>
@@ -245,64 +281,38 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight" style={{ color: currentTheme.text }}>{form?.title || 'Submissions'}</h1>
-              <p className="text-sm font-medium" style={{ color: currentTheme.textMuted }}>{submissions.length} Total Responses Collected</p>
+              <p className="text-sm font-medium" style={{ color: currentTheme.textMuted }}>
+                {filteredSubmissions.length} of {submissions.length} Responses Displayed
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
+             <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "px-6 py-2.5 rounded-xl font-black shadow-lg transition-all text-xs uppercase tracking-widest flex items-center gap-2 border",
+                activeFiltersCount > 0 ? "bg-primary text-white" : ""
+              )}
+              style={{ 
+                backgroundColor: activeFiltersCount > 0 ? currentTheme.primary : currentTheme.card, 
+                color: activeFiltersCount > 0 ? (currentTheme.lightMode ? 'white' : 'black') : currentTheme.primary,
+                borderColor: currentTheme.border 
+              }}
+            >
+              <Filter className="w-4 h-4" />
+              Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+            </button>
+
             <button
               onClick={exportToCSV}
-              disabled={submissions.length === 0}
+              disabled={filteredSubmissions.length === 0}
               className="px-6 py-2.5 rounded-xl font-black shadow-lg transition-all text-xs uppercase tracking-widest flex items-center gap-2 disabled:opacity-30 border"
               style={{ backgroundColor: currentTheme.card, color: currentTheme.primary, borderColor: currentTheme.border }}
             >
               <Download className="w-4 h-4" />
-              Download CSV
+              Export CSV
             </button>
 
-            {sheetStatus?.isConnected && sheetStatus?.sheetId && (
-              <button
-                onClick={handleGoogleSync}
-                disabled={syncing || submissions.length === 0}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {syncing ? (
-                  <LoaderIcon className="w-4 h-4" />
-                ) : (
-                  <Database className="w-4 h-4" />
-                )}
-                {syncing ? 'Syncing...' : 'Sync to Google Sheets'}
-              </button>
-            )}
-
-            {zapierStatus?.webhookUrl && (
-              <button
-                onClick={handleZapierSync}
-                disabled={zapSyncing || submissions.length === 0}
-                className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-orange-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {zapSyncing ? (
-                  <LoaderIcon className="w-4 h-4" />
-                ) : (
-                  <Zap className="w-4 h-4 fill-current" />
-                )}
-                {zapSyncing ? 'Sending...' : 'Sync to Zapier'}
-              </button>
-            )}
-
-            {airtableStatus?.apiKey && (
-              <button
-                onClick={handleAirtableSync}
-                disabled={airSyncing || submissions.length === 0}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-blue-700 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {airSyncing ? (
-                  <LoaderIcon className="w-4 h-4" />
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
-                {airSyncing ? 'Syncing...' : 'Sync to Airtable'}
-              </button>
-            )}
             <Link
               href={`/dashboard/forms/${resolvedParams.id}/edit`}
               className="px-6 py-2.5 rounded-xl font-black shadow-lg transition-all text-xs uppercase tracking-widest flex items-center gap-2 border"
@@ -322,13 +332,90 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
+        {/* Filters Panel */}
+        {showFilters && (
+          <div 
+            className="p-8 rounded-2xl border shadow-xl backdrop-blur-xl space-y-6"
+            style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-widest" style={{ color: currentTheme.text }}>Advanced Filters</h3>
+              <button 
+                onClick={clearFilters}
+                className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border hover:bg-red-500 hover:text-white transition-all"
+                style={{ borderColor: currentTheme.border, color: currentTheme.textMuted }}
+              >
+                Clear All
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Global Search */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Global Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: currentTheme.textMuted }} />
+                  <input 
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="Search anything..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm outline-none transition-all"
+                    style={{ backgroundColor: currentTheme.bg, borderColor: currentTheme.border, color: currentTheme.text }}
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Field Filters */}
+              {form?.form_fields?.map((field: any) => (
+                <div key={field.id} className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>{field.label}</label>
+                  <div className="relative">
+                    {['select', 'radio', 'checkbox'].includes(field.type) ? (
+                      <select
+                        value={filters[field.id] || ''}
+                        onChange={(e) => updateFilter(field.id, e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all appearance-none"
+                        style={{ backgroundColor: currentTheme.bg, borderColor: currentTheme.border, color: currentTheme.text }}
+                      >
+                        <option value="">Any {field.label}</option>
+                        {field.options?.map((opt: string) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input 
+                        type="text"
+                        value={filters[field.id] || ''}
+                        onChange={(e) => updateFilter(field.id, e.target.value)}
+                        placeholder={`Filter by ${field.label}...`}
+                        className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all"
+                        style={{ backgroundColor: currentTheme.bg, borderColor: currentTheme.border, color: currentTheme.text }}
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Data Table */}
         <div className="rounded-2xl border shadow-2xl overflow-hidden transition-colors" style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}>
-          {submissions.length === 0 ? (
-            <div className="text-center py-16">
-              <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
-              <h3 className="mt-4 text-sm font-medium text-gray-900">No submissions yet</h3>
-              <p className="mt-1 text-sm text-gray-500">Share your form link to start collecting responses.</p>
+          {filteredSubmissions.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                 <X className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-black tracking-tight" style={{ color: currentTheme.text }}>No matches found</h3>
+              <p className="text-sm font-medium max-w-xs mx-auto mt-2" style={{ color: currentTheme.textMuted }}>Try adjusting your filters or clear them to see all submissions.</p>
+              <button 
+                onClick={clearFilters}
+                className="mt-6 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                style={{ backgroundColor: currentTheme.primary, color: currentTheme.lightMode ? 'white' : 'black' }}
+              >
+                Clear All Filters
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -346,8 +433,8 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: currentTheme.border }}>
-                  {submissions.map((sub: any) => (
-                    <tr key={sub.id} className="hover:bg-white/5 transition-colors">
+                  {filteredSubmissions.map((sub: any) => (
+                    <tr key={sub.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: currentTheme.textMuted }}>
                         {new Date(sub.submitted_at).toLocaleString()}
                       </td>
@@ -382,4 +469,4 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       </div>
     </div>
   )
-}
+}
