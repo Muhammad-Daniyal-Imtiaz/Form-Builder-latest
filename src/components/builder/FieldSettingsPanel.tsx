@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Settings, X, GripVertical, Plus, Trash2, GitBranch } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { cn } from '@/utils/cn'
+import { useTheme } from '@/components/ThemeProvider'
 
 export function FieldSettingsPanel() {
   const { activeFieldId, setActiveFieldId, fields, updateField, addOption, updateOption, removeOption } = useBuilder()
+  const { currentTheme } = useTheme()
 
   const activeField = fields.find(f => f.id === activeFieldId)
 
@@ -44,10 +46,11 @@ export function FieldSettingsPanel() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
-          className="w-80 bg-white/90 backdrop-blur-xl border-l border-gray-200/50 h-[calc(100vh-56px)] sticky top-14 shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-20 flex flex-col shrink-0"
+          className="w-80 border-l h-[calc(100vh-56px)] sticky top-14 shadow-2xl z-20 flex flex-col shrink-0 transition-colors duration-500"
+          style={{ backgroundColor: `${currentTheme.bg}cc`, borderColor: currentTheme.border, backdropBlur: '40px' }}
         >
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-indigo-700 font-bold">
+          <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: currentTheme.border }}>
+            <div className="flex items-center gap-2 font-bold" style={{ color: currentTheme.primary }}>
               <Settings className="w-4 h-4" />
               <span className="text-sm">Field Settings</span>
             </div>
@@ -62,13 +65,14 @@ export function FieldSettingsPanel() {
           <div className="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: currentTheme.textMuted }}>
                   Field Location
                 </label>
                 <select
                   value={activeField.pageIndex}
                   onChange={(e) => updateField(activeField.id, { pageIndex: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-lg text-sm font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all appearance-none cursor-pointer"
+                  className="w-full px-3 py-2 border rounded-lg text-sm font-bold focus:ring-2 outline-none transition-all appearance-none cursor-pointer"
+                  style={{ backgroundColor: `${currentTheme.primary}10`, color: currentTheme.primary, borderColor: `${currentTheme.primary}20` }}
                 >
                   {Array.from({ length: Math.max(1, ...fields.map(f => f.pageIndex)) + 1 }).map((_, i) => (
                     <option key={i} value={i}>Page {i + 1}</option>
@@ -78,43 +82,49 @@ export function FieldSettingsPanel() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: currentTheme.textMuted }}>
                   Field Label
                 </label>
                 <input
                   type="text"
                   value={activeField.label}
                   onChange={(e) => updateField(activeField.id, { label: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                  className="w-full px-3 py-2 border rounded-lg text-sm font-medium focus:ring-2 outline-none transition-all"
+                  style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
                 />
               </div>
 
               {['text', 'email', 'number', 'textarea'].includes(activeField.type) && (
                 <div>
-                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
-                    Placeholder Text
-                  </label>
-                  <input
-                    type="text"
-                    value={activeField.placeholder || ''}
-                    onChange={(e) => updateField(activeField.id, { placeholder: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                    placeholder="Enter placeholder..."
-                  />
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: currentTheme.textMuted }}>
+                  Placeholder Text
+                </label>
+                <input
+                  type="text"
+                  value={activeField.placeholder || ''}
+                  onChange={(e) => updateField(activeField.id, { placeholder: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm font-medium focus:ring-2 outline-none transition-all"
+                  style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
+                  placeholder="Enter placeholder..."
+                />
                 </div>
               )}
 
               <div className="pt-2">
-                <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:border-indigo-200 transition-colors">
+                <label 
+                  className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors"
+                  style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}
+                >
                   <input
                     type="checkbox"
                     checked={activeField.required}
                     onChange={(e) => updateField(activeField.id, { required: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                    className="w-4 h-4 rounded"
+                    style={{ accentColor: currentTheme.primary }}
                   />
                   <div>
-                    <div className="text-sm font-bold text-gray-800">Required Field</div>
-                    <div className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">User must fill this out</div>
+                    <div className="text-sm font-bold" style={{ color: currentTheme.text }}>Required Field</div>
+                    <div className="text-[10px] font-medium leading-tight mt-0.5" style={{ color: currentTheme.textMuted }}>User must fill this out</div>
                   </div>
                 </label>
               </div>
@@ -122,8 +132,7 @@ export function FieldSettingsPanel() {
 
             {/* Options Manager */}
             {['select', 'multiselect', 'radio', 'checkbox'].includes(activeField.type) && (
-              <div className="pt-4 border-t border-gray-100">
-                <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-3" style={{ color: currentTheme.textMuted }}>
                   Choices
                 </label>
                 <div className="space-y-2">

@@ -3,7 +3,8 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { cn } from '@/utils/cn'
-import { Database, Download, ExternalLink, ArrowLeft, Check, Zap } from 'lucide-react'
+import { Database, Download, ExternalLink, ArrowLeft, Check, Zap, Table as TableIcon } from 'lucide-react'
+import { useTheme } from '@/components/ThemeProvider'
 
 const LoaderIcon = ({ className }: { className?: string }) => (
   <svg className={cn("animate-spin", className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -23,6 +24,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   const [syncing, setSyncing] = useState(false)
   const [zapSyncing, setZapSyncing] = useState(false)
   const [airSyncing, setAirSyncing] = useState(false)
+  const { currentTheme } = useTheme()
 
   useEffect(() => {
     fetchData()
@@ -227,29 +229,31 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
   if (error) return <div className="p-8 text-red-500 text-center">{error}</div>
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-8">
+    <div className="min-h-screen p-6 md:p-8 transition-colors duration-500" style={{ backgroundColor: currentTheme.bg }}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <Link href="/dashboard" className="text-gray-400 hover:text-indigo-600 transition-colors">
-                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100">
-                  <Database className="w-6 h-6 text-blue-600" />
-                </div>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight">{form?.title || 'Form Submissions'}</h1>
-                <p className="text-gray-500 text-sm font-medium">Manage and export your collected data</p>
-              </div>
+        <div 
+          className="rounded-2xl border px-8 py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-xl backdrop-blur-xl"
+          style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}
+        >
+          <div className="flex items-center gap-4">
+            <div 
+              className="w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg"
+              style={{ backgroundColor: `${currentTheme.primary}15`, borderColor: `${currentTheme.primary}30` }}
+            >
+              <TableIcon className="w-7 h-7" style={{ color: currentTheme.primary }} />
             </div>
-            <p className="text-sm text-gray-500 ml-8">{submissions.length} Total Submissions</p>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight" style={{ color: currentTheme.text }}>{form?.title || 'Submissions'}</h1>
+              <p className="text-sm font-medium" style={{ color: currentTheme.textMuted }}>{submissions.length} Total Responses Collected</p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <button
               onClick={exportToCSV}
               disabled={submissions.length === 0}
-              className="bg-white text-indigo-600 border border-indigo-200 px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-indigo-50 transition-all text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 rounded-xl font-black shadow-lg transition-all text-xs uppercase tracking-widest flex items-center gap-2 disabled:opacity-30 border"
+              style={{ backgroundColor: currentTheme.card, color: currentTheme.primary, borderColor: currentTheme.border }}
             >
               <Download className="w-4 h-4" />
               Download CSV
@@ -301,23 +305,25 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             )}
             <Link
               href={`/dashboard/forms/${resolvedParams.id}/edit`}
-              className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-gray-50 transition-colors text-sm"
+              className="px-6 py-2.5 rounded-xl font-black shadow-lg transition-all text-xs uppercase tracking-widest flex items-center gap-2 border"
+              style={{ backgroundColor: currentTheme.card, color: currentTheme.text, borderColor: currentTheme.border }}
             >
               Edit Form
             </Link>
             <Link
               href={`${process.env.NEXT_PUBLIC_SITE_URL || ''}/f/${resolvedParams.id}`}
               target="_blank"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl font-black shadow-lg transition-all text-xs uppercase tracking-widest flex items-center gap-2 shadow-primary/20"
+              style={{ backgroundColor: currentTheme.primary, color: currentTheme.lightMode ? 'white' : 'black' }}
             >
-              View Public Form
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+              View Form
+              <ExternalLink className="w-4 h-4" />
             </Link>
           </div>
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="rounded-2xl border shadow-2xl overflow-hidden transition-colors" style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}>
           {submissions.length === 0 ? (
             <div className="text-center py-16">
               <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
@@ -327,28 +333,28 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead style={{ backgroundColor: `${currentTheme.bg}80` }}>
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>
                       Date Submitted
                     </th>
                     {headers.map((header: string, i: number) => (
-                      <th key={i} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      <th key={i} scope="col" className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>
                         {header}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y" style={{ borderColor: currentTheme.border }}>
                   {submissions.map((sub: any) => (
-                    <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <tr key={sub.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: currentTheme.textMuted }}>
                         {new Date(sub.submitted_at).toLocaleString()}
                       </td>
                       {form?.form_fields?.map((field: any, i: number) => {
                         const cellValue = sub.data[field.id] || sub.data[field.label] || '-'
                         return (
-                          <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td key={i} className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ color: currentTheme.text }}>
                             {['file', 'multifile'].includes(field.type) && cellValue && (Array.isArray(cellValue) ? cellValue[0]?.url : cellValue.url) ? (
                               <div className="flex flex-col gap-1">
                                 {(Array.isArray(cellValue) ? cellValue : [cellValue]).map((fileObj, fIdx) => (
