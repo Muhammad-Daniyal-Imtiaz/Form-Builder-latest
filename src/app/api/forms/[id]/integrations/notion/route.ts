@@ -26,7 +26,7 @@ export async function GET(
 
     return NextResponse.json({
       apiKey: form?.notion_api_key ? '********' : null,
-      databaseId: form?.notion_database_id ? 'Connected' : null,
+      databaseId: form?.notion_database_id ? await decrypt(form.notion_database_id) : null,
       isEnabled: form?.notion_enabled
     })
   } catch (err) {
@@ -113,20 +113,29 @@ export async function POST(
         .eq('notion_synced', false)
 
       if (!unsynced || unsynced.length === 0) {
-        return NextResponse.json({ message: 'All submissions are already synced.', count: 0 })
+        return NextResponse.json({ success: true, message: 'No unsynced submissions found. All current data is already in Notion!' })
       }
 
-      const { count } = await syncMultipleSubmissionsToNotion(id, unsynced.map(s => s.id))
+      const result = await syncMultipleSubmissionsToNotion(id, unsynced.map(s => s.id))
       return NextResponse.json({ 
         success: true, 
-        message: `Successfully synced ${count} submissions to Notion!`, 
-        count 
+        message: `Successfully synced ${result.count} submissions to Notion!${ (result as any).failed > 0 ? ` (${ (result as any).failed } failed)` : '' }`,
+        count: result.count
       })
     }
 
     // 4. SEND TEST SAMPLE
     if (action === 'send-test') {
-      const testSubmission = {
+      const admin = createAdminClient()
+      const { data: latestSub } = await admin
+        .from('submissions')
+        .select('*')
+        .eq('form_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const testSubmission = latestSub || {
         id: 'test-sample',
         data: {
           'Full Name': 'Test User',
@@ -138,7 +147,10 @@ export async function POST(
       
       const res = await syncSubmissionToNotion(id, testSubmission)
       if (res.success) {
-        return NextResponse.json({ success: true, message: 'Test sample sent to Notion!' })
+        return NextResponse.json({ 
+          success: true, 
+          message: latestSub ? 'Latest real submission synced to Notion!' : 'Test sample sent to Notion!' 
+        })
       } else {
         return NextResponse.json({ error: res.error }, { status: 400 })
       }

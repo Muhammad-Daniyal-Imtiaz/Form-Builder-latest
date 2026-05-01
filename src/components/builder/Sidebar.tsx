@@ -6,7 +6,7 @@ import {
   Type, Mail, Hash, AlignLeft, List, CheckSquare, 
   FileUp, Palette, Plus, Settings, Check, 
   MousePointer2, MessageSquare, ExternalLink, RefreshCcw,
-  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet, Zap, Star
+  Share2, Globe, Code, Copy, Search, Plug, Database, FileSpreadsheet, Zap, Star, ChevronDown
 } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FieldType, PRESET_THEMES, AVAILABLE_FONTS } from './types'
@@ -1360,35 +1360,33 @@ export function Sidebar() {
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Database</label>
-                        {availableDatabases.length > 0 ? (
-                          <select
-                            value={notionDbInput}
-                            onChange={(e) => setNotionDbInput(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                          >
-                            <option value="">Select a database...</option>
-                            {availableDatabases.map(db => (
-                              <option key={db.id} value={db.id}>{db.title}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Paste ID or fetch list..."
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <select
                               value={notionDbInput}
                               onChange={(e) => setNotionDbInput(e.target.value)}
-                              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                            />
-                            <button
-                              onClick={() => handleNotionAction('list-databases', { apiKey: notionKeyInput })}
-                              disabled={loading || !notionKeyInput || notionKeyInput === '********'}
-                              className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none"
                             >
-                              Fetch
-                            </button>
+                              <option value="">Select a database...</option>
+                              {notionStatus?.databaseId && !availableDatabases.find(d => d.id === notionStatus.databaseId) && (
+                                <option value={notionStatus.databaseId}>Currently Connected</option>
+                              )}
+                              {availableDatabases.map(db => (
+                                <option key={db.id} value={db.id}>{db.title}</option>
+                              ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <ChevronDown className="w-3 h-3" />
+                            </div>
                           </div>
-                        )}
+                          <button
+                            onClick={() => handleNotionAction('list-databases', { apiKey: notionKeyInput === '********' ? null : notionKeyInput })}
+                            disabled={loading || !notionKeyInput}
+                            className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                          >
+                            {availableDatabases.length > 0 ? 'Refresh' : 'Fetch'}
+                          </button>
+                        </div>
                       </div>
 
                       {!notionStatus?.apiKey ? (

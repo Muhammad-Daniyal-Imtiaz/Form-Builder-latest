@@ -145,12 +145,24 @@ export async function syncMultipleSubmissionsToNotion(formId: string, submission
   if (!submissions || submissions.length === 0) return { count: 0 };
 
   let successCount = 0;
+  let failCount = 0;
+  let errors: string[] = [];
+
   for (const sub of submissions) {
     const res = await syncSubmissionToNotion(formId, sub);
-    if (res.success) successCount++;
+    if (res.success) {
+      successCount++;
+    } else {
+      failCount++;
+      if (res.error) errors.push(res.error);
+    }
   }
 
-  return { count: successCount };
+  return { 
+    count: successCount, 
+    failed: failCount,
+    errors: Array.from(new Set(errors)) // Unique errors
+  };
 }
 
 export async function setupNotionDatabase(formId: string, providedApiKey?: string, providedDatabaseId?: string) {
@@ -285,11 +297,18 @@ export async function listAvailableDatabases(apiKey: string) {
       return { success: false, error: err.message };
     }
 
-    const data = await response.json();
-    const databases = data.results.map((db: any) => ({
-      id: db.id.replace(/-/g, ''),
-      title: db.title?.[0]?.plain_text || 'Untitled Database'
-    }));
+    const databases = data.results.map((db: any) => {
+      // Robust title extraction
+      const titleObj = db.title || db.name || [];
+      const title = Array.isArray(titleObj) 
+        ? titleObj[0]?.plain_text || titleObj[0]?.text?.content
+        : 'Untitled Database';
+        
+      return {
+        id: db.id.replace(/-/g, ''),
+        title: title || `Database (${db.id.substring(0, 8)})`
+      };
+    });
 
     return { success: true, databases };
   } catch (error: any) {
