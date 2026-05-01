@@ -61,7 +61,7 @@ export async function POST(
         airtable_enabled: enabled
       };
       if (apiKey && apiKey !== '********') {
-        updateData.airtable_api_key = encrypt(apiKey);
+        updateData.airtable_api_key = await encrypt(apiKey);
       }
 
       const { error } = await supabase
@@ -107,7 +107,7 @@ export async function POST(
         if (!fields || fields.length === 0) return NextResponse.json({ error: 'No fields found in form' }, { status: 400 });
 
         // 2. Fetch Airtable Schema (Metadata API)
-        const actualApiKey = decrypt(form.airtable_api_key);
+        const actualApiKey = await decrypt(form.airtable_api_key);
         const airtableHeaders = {
             'Authorization': `Bearer ${actualApiKey}`,
             'Content-Type': 'application/json'

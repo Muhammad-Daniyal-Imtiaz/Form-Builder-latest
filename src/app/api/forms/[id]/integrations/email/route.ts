@@ -70,7 +70,7 @@ export async function POST(
 
       // Only update password if it's not the masked placeholder
       if (appPassword && appPassword !== '********') {
-        updateData.email_app_password = encrypt(appPassword);
+        updateData.email_app_password = await encrypt(appPassword);
       }
 
       const { error } = await supabase
@@ -95,7 +95,7 @@ export async function POST(
           .select('email_app_password, email_to_list')
           .eq('id', id)
           .single();
-        if (appPassword === '********') actualPassword = form?.email_app_password ? decrypt(form?.email_app_password) : undefined;
+        if (appPassword === '********') actualPassword = form?.email_app_password ? await decrypt(form?.email_app_password) : undefined;
         if (!actualToList) actualToList = form?.email_to_list;
       }
 

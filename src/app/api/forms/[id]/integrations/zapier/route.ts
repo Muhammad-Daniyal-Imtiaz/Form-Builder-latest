@@ -56,7 +56,7 @@ export async function POST(
           zapier_enabled: enabled 
       };
       if (webhookUrl && webhookUrl !== '********') {
-          updateData.zapier_webhook_url = encrypt(webhookUrl);
+          updateData.zapier_webhook_url = await encrypt(webhookUrl);
       }
 
       const { error } = await supabase
@@ -128,7 +128,7 @@ export async function POST(
                     });
                 }
 
-                const actualWebhookUrl = decrypt(form.zapier_webhook_url!);
+                const actualWebhookUrl = await decrypt(form.zapier_webhook_url!);
                 const response = await fetch(actualWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -195,7 +195,7 @@ export async function POST(
             });
         }
 
-        const actualWebhookUrl = decrypt(form.zapier_webhook_url);
+        const actualWebhookUrl = await decrypt(form.zapier_webhook_url);
         const response = await fetch(actualWebhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

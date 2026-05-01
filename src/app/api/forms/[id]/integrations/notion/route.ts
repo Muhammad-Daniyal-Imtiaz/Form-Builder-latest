@@ -26,7 +26,7 @@ export async function GET(
 
     return NextResponse.json({
       apiKey: form?.notion_api_key ? '********' : null,
-      databaseId: form?.notion_database_id ? decrypt(form.notion_database_id) : null,
+      databaseId: form?.notion_database_id ? await decrypt(form.notion_database_id) : null,
       isEnabled: form?.notion_enabled
     })
   } catch (err) {
@@ -59,11 +59,11 @@ export async function POST(
       }
       
       if (apiKey && apiKey !== '********') {
-        updateData.notion_api_key = encrypt(apiKey)
+        updateData.notion_api_key = await encrypt(apiKey)
       }
       
       if (databaseId && databaseId !== '********') {
-        updateData.notion_database_id = encrypt(databaseId)
+        updateData.notion_database_id = await encrypt(databaseId)
       }
 
       const { error } = await supabase

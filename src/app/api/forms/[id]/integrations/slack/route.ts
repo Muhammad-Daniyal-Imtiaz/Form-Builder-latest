@@ -26,7 +26,7 @@ export async function GET(
     let channels = [];
     if (form?.slack_bot_token) {
         try {
-            const actualToken = decrypt(form.slack_bot_token);
+            const actualToken = await decrypt(form.slack_bot_token);
             const slackResp = await fetch('https://slack.com/api/conversations.list?types=public_channel', {
                 headers: { 'Authorization': `Bearer ${actualToken}` }
             });
@@ -81,7 +81,7 @@ export async function POST(
         slack_enabled: enabled 
       };
       if (botToken && botToken !== '********') {
-        updateData.slack_bot_token = encrypt(botToken);
+        updateData.slack_bot_token = await encrypt(botToken);
       }
 
       const { error } = await supabase
@@ -100,7 +100,7 @@ export async function POST(
         if (botToken === '********') {
             const { data: dbForm } = await supabase.from('forms').select('slack_bot_token').eq('id', id).single();
             if (dbForm?.slack_bot_token) {
-                actualToken = decrypt(dbForm.slack_bot_token);
+                actualToken = await decrypt(dbForm.slack_bot_token);
             }
         }
 

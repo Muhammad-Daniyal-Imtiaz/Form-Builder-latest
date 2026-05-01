@@ -14,6 +14,42 @@ interface FileRecord {
 // --- Encryption Utility ---
 const ENCRYPTION_SECRET = Deno.env.get("ENCRYPTION_SECRET") || "";
 const ENCRYPTION_PREFIX = "enc:v2";
+const NEW_ENCRYPTION_PREFIX = "enc:v3";
+
+async function decryptWeb(payload: string, secret: string) {
+  try {
+    const parts = payload.split(':');
+    if (parts.length < 3) return payload;
+    
+    const [, ivPart, encryptedPart] = parts;
+    
+    // Import Key
+    const enc = new TextEncoder();
+    const hash = await crypto.subtle.digest('SHA-256', enc.encode(secret));
+    const key = await crypto.subtle.importKey(
+      'raw', hash, { name: 'AES-GCM' }, false, ['decrypt']
+    );
+
+    // Helper to convert base64url to Uint8Array
+    const fromBase64Url = (base64url: string) => {
+      const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(base64);
+      const buffer = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buffer[i] = bin.charCodeAt(i);
+      return buffer;
+    };
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64Url(ivPart) },
+      key,
+      fromBase64Url(encryptedPart)
+    );
+    return new TextDecoder().decode(decrypted);
+  } catch (err) {
+    console.error("[Decrypt Error] Web Crypto:", err.message);
+    return payload;
+  }
+}
 
 function deriveCurrentKey(secret: string) {
   if (/^[0-9a-fA-F]{64}$/.test(secret)) {
@@ -80,9 +116,12 @@ function decryptLegacy(text: string, secret: string): string {
   }
 }
 
-function decrypt(text: string): string {
+async function decrypt(text: string): Promise<string> {
   if (!text) return "";
   if (!ENCRYPTION_SECRET) return text;
+  if (text.startsWith(`${NEW_ENCRYPTION_PREFIX}:`)) {
+    return await decryptWeb(text, ENCRYPTION_SECRET);
+  }
   if (text.startsWith(`${ENCRYPTION_PREFIX}:`)) {
     return decryptCurrent(text, ENCRYPTION_SECRET);
   }
@@ -91,6 +130,7 @@ function decrypt(text: string): string {
   }
   return text;
 }
+
 
 // --- Supabase Setup ---
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -294,7 +334,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
   if (formConfig.slack_enabled && formConfig.slack_bot_token && formConfig.slack_channel_id) {
     tasks.push((async () => {
       try {
-        const token = decrypt(formConfig.slack_bot_token);
+        const token = await decrypt(formConfig.slack_bot_token);
         const { data: flds } = await supabase.from('form_fields').select('id, label').eq('form_id', formConfig.id);
         const blocks = [
           { type: "header", text: { type: "plain_text", text: "New Submission" } },
@@ -318,7 +358,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
   if (formConfig.zapier_enabled && formConfig.zapier_webhook_url) {
     tasks.push((async () => {
       try {
-        const url = decrypt(formConfig.zapier_webhook_url);
+        const url = await decrypt(formConfig.zapier_webhook_url);
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -333,7 +373,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
   if (formConfig.airtable_enabled && formConfig.airtable_api_key && formConfig.airtable_base_id) {
     tasks.push((async () => {
       try {
-        const key = decrypt(formConfig.airtable_api_key);
+        const key = await decrypt(formConfig.airtable_api_key);
         const res = await fetch(`https://api.airtable.com/v0/${formConfig.airtable_base_id}/${encodeURIComponent(formConfig.airtable_table_name || 'Submissions')}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -348,7 +388,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
   if (formConfig.email_enabled && formConfig.notification_email && formConfig.email_app_password) {
     tasks.push((async () => {
       try {
-        const pass = decrypt(formConfig.email_app_password);
+        const pass = await decrypt(formConfig.email_app_password);
         const transporter = nodemailer.createTransport({
           host: formConfig.email_host || 'smtp.gmail.com',
           port: formConfig.email_port || 465,
@@ -389,8 +429,8 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
   if (formConfig.notion_enabled && formConfig.notion_api_key && formConfig.notion_database_id) {
     tasks.push((async () => {
       try {
-        const apiKey = decrypt(formConfig.notion_api_key);
-        const databaseId = decrypt(formConfig.notion_database_id);
+        const apiKey = await decrypt(formConfig.notion_api_key);
+        const databaseId = await decrypt(formConfig.notion_database_id);
 
         const properties: Record<string, any> = {};
         let titleKey = Object.keys(data).find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('subject')) || Object.keys(data)[0];

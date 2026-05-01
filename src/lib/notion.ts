@@ -16,8 +16,8 @@ export async function syncSubmissionToNotion(formId: string, submission: any) {
   }
 
   try {
-    const apiKey = decrypt(form.notion_api_key);
-    const databaseId = decrypt(form.notion_database_id);
+    const apiKey = await decrypt(form.notion_api_key);
+    const databaseId = await decrypt(form.notion_database_id);
 
     // 2. Prepare Properties
     const properties: any = {};
