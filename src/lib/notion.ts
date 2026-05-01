@@ -264,12 +264,17 @@ export async function createDatabaseInNotion(formId: string, title: string, pare
        return { success: false, error: result.message || 'Failed to create database' };
     }
 
-    // 4. Update Form with the new Database ID
+    // 4. Update Form with the new Database ID and potentially API Key
     const newDbId = result.id.replace(/-/g, '');
-    await adminClient.from('forms').update({ 
+    const updatePayload: any = {
       notion_database_id: await encrypt(newDbId),
       notion_enabled: true 
-    }).eq('id', formId);
+    };
+    if (providedApiKey && providedApiKey !== '********') {
+      updatePayload.notion_api_key = await encrypt(providedApiKey);
+    }
+    
+    await adminClient.from('forms').update(updatePayload).eq('id', formId);
 
     return { success: true, databaseId: newDbId };
   } catch (err: any) {
@@ -297,6 +302,8 @@ export async function listAvailableDatabases(apiKey: string) {
       return { success: false, error: err.message };
     }
 
+    const data = await response.json();
+    
     const databases = data.results.map((db: any) => {
       // Robust title extraction
       const titleObj = db.title || db.name || [];

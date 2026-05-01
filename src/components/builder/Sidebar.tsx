@@ -72,6 +72,9 @@ export function Sidebar() {
   const [notionKeyInput, setNotionKeyInput] = useState('')
   const [notionDbInput, setNotionDbInput] = useState('')
   const [availableDatabases, setAvailableDatabases] = useState<any[]>([])
+  const [notionMode, setNotionMode] = useState<'select' | 'create'>('select')
+  const [newDbName, setNewDbName] = useState('')
+  const [parentPageId, setParentPageId] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -1358,50 +1361,107 @@ export function Sidebar() {
                         />
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Database</label>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <select
-                              value={notionDbInput}
-                              onChange={(e) => setNotionDbInput(e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none"
-                            >
-                              <option value="">Select a database...</option>
-                              {notionStatus?.databaseId && !availableDatabases.find(d => d.id === notionStatus.databaseId) && (
-                                <option value={notionStatus.databaseId}>Currently Connected</option>
-                              )}
-                              {availableDatabases.map(db => (
-                                <option key={db.id} value={db.id}>{db.title}</option>
-                              ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                              <ChevronDown className="w-3 h-3" />
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleNotionAction('list-databases', { apiKey: notionKeyInput === '********' ? null : notionKeyInput })}
-                            disabled={loading || !notionKeyInput}
-                            className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
-                          >
-                            {availableDatabases.length > 0 ? 'Refresh' : 'Fetch'}
-                          </button>
-                        </div>
+                      <div className="flex bg-gray-100 p-1 rounded-lg mt-2 mb-4">
+                        <button
+                          onClick={() => setNotionMode('select')}
+                          className={cn(
+                            "flex-1 py-1 text-[10px] font-bold rounded shadow-sm transition-colors",
+                            notionMode === 'select' ? "bg-white text-black" : "text-gray-500 hover:text-gray-700"
+                          )}
+                        >
+                          Select Existing
+                        </button>
+                        <button
+                          onClick={() => setNotionMode('create')}
+                          className={cn(
+                            "flex-1 py-1 text-[10px] font-bold rounded shadow-sm transition-colors",
+                            notionMode === 'create' ? "bg-white text-black" : "text-gray-500 hover:text-gray-700"
+                          )}
+                        >
+                          Create New
+                        </button>
                       </div>
+
+                      {notionMode === 'select' ? (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Database</label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <select
+                                value={notionDbInput}
+                                onChange={(e) => setNotionDbInput(e.target.value)}
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none"
+                              >
+                                <option value="">Select a database...</option>
+                                {notionStatus?.databaseId && !availableDatabases.find(d => d.id === notionStatus.databaseId) && (
+                                  <option value={notionStatus.databaseId}>Currently Connected</option>
+                                )}
+                                {availableDatabases.map(db => (
+                                  <option key={db.id} value={db.id}>{db.title}</option>
+                                ))}
+                              </select>
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <ChevronDown className="w-3 h-3" />
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleNotionAction('list-databases', { apiKey: notionKeyInput === '********' ? null : notionKeyInput })}
+                              disabled={loading || !notionKeyInput}
+                              className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                              {availableDatabases.length > 0 ? 'Refresh' : 'Fetch'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 bg-black/5 p-3 rounded-xl border border-black/5">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">New Database Name</label>
+                            <input
+                              type="text"
+                              placeholder={form?.title || "My Database"}
+                              value={newDbName}
+                              onChange={(e) => setNewDbName(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded text-xs outline-none"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">Parent Page ID</label>
+                            <input
+                              type="text"
+                              placeholder="Paste Notion Page ID..."
+                              value={parentPageId}
+                              onChange={(e) => setParentPageId(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded text-xs outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {!notionStatus?.apiKey ? (
                         <button
-                          onClick={() => handleNotionAction('update', { 
-                            apiKey: notionKeyInput, 
-                            databaseId: notionDbInput, 
-                            enabled: true,
-                            setupColumns: true
-                          })}
-                          disabled={loading || !notionKeyInput || !notionDbInput}
-                          className="w-full py-2 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-900 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:shadow-none"
+                          onClick={() => {
+                            if (notionMode === 'create') {
+                              handleNotionAction('create-database', { 
+                                notionKey: notionKeyInput, 
+                                title: newDbName || form?.title || 'Form Database', 
+                                parentPageId: parentPageId 
+                              })
+                            } else {
+                              handleNotionAction('update', { 
+                                apiKey: notionKeyInput, 
+                                databaseId: notionDbInput, 
+                                enabled: true,
+                                setupColumns: true
+                              })
+                            }
+                          }}
+                          disabled={loading || !notionKeyInput || (notionMode === 'select' ? !notionDbInput : !parentPageId)}
+                          className="w-full py-2 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-900 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:shadow-none mt-2"
                         >
-                          {loading ? 'Connecting...' : 'Connect & Setup Notion'}
+                          {loading ? 'Connecting...' : (notionMode === 'create' ? 'Auto-Create Database' : 'Connect & Setup Notion')}
                         </button>
+
                       ) : (
                         <div className="space-y-2">
                           <div className="flex gap-2 pt-1">
