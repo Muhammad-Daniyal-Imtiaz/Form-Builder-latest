@@ -69,6 +69,8 @@ export function Sidebar() {
   const [slackStatus, setSlackStatus] = useState<any>(null)
   const [emailStatus, setEmailStatus] = useState<any>(null)
   const [notionStatus, setNotionStatus] = useState<any>(null)
+  const [notionKeyInput, setNotionKeyInput] = useState('')
+  const [notionDbInput, setNotionDbInput] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -103,6 +105,8 @@ export function Sidebar() {
       setSlackStatus(slackData)
       setEmailStatus(emailData)
       setNotionStatus(notionData)
+      if (notionData?.apiKey) setNotionKeyInput('********')
+      if (notionData?.databaseId) setNotionDbInput(notionData.databaseId)
 
     } catch (err) {
       console.error('Failed to fetch integration status:', err)
@@ -1342,16 +1346,8 @@ export function Sidebar() {
                         <input
                           type="password"
                           placeholder="secret_..."
-                          defaultValue={notionStatus?.apiKey || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (notionStatus?.apiKey || '')) {
-                              handleNotionAction('update', { 
-                                apiKey: e.target.value, 
-                                databaseId: notionStatus?.databaseId,
-                                enabled: true 
-                              })
-                            }
-                          }}
+                          value={notionKeyInput}
+                          onChange={(e) => setNotionKeyInput(e.target.value)}
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                         />
                       </div>
@@ -1361,49 +1357,76 @@ export function Sidebar() {
                         <input
                           type="text"
                           placeholder="Paste database ID here..."
-                          defaultValue={notionStatus?.databaseId || ''}
-                          onBlur={(e) => {
-                            if (e.target.value !== (notionStatus?.databaseId || '')) {
-                              handleNotionAction('update', { 
-                                apiKey: notionStatus?.apiKey,
-                                databaseId: e.target.value, 
-                                enabled: true 
-                              })
-                            }
-                          }}
+                          value={notionDbInput}
+                          onChange={(e) => setNotionDbInput(e.target.value)}
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                         />
                       </div>
 
-                      {notionStatus?.apiKey && (
-                        <div className="flex gap-2 pt-1">
+                      {!notionStatus?.apiKey ? (
+                        <button
+                          onClick={() => handleNotionAction('update', { 
+                            apiKey: notionKeyInput, 
+                            databaseId: notionDbInput, 
+                            enabled: true 
+                          })}
+                          disabled={loading || !notionKeyInput || !notionDbInput}
+                          className="w-full py-2 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-900 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:shadow-none"
+                        >
+                          {loading ? 'Connecting...' : 'Connect Notion'}
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => handleNotionAction('send-test')}
+                              disabled={loading}
+                              className="flex-1 py-1.5 px-2 bg-black text-white text-[9px] font-bold rounded hover:bg-gray-900 transition-colors disabled:opacity-50"
+                            >
+                              Send Test Sample
+                            </button>
+                            <button
+                              onClick={() => handleNotionAction('sync-existing')}
+                              disabled={loading}
+                              className="flex-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-600 text-[9px] font-bold rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            >
+                              Sync Existing
+                            </button>
+                          </div>
+                          
+                          {(notionKeyInput !== '********' || notionDbInput !== notionStatus?.databaseId) && (
+                             <button
+                               onClick={() => handleNotionAction('update', { 
+                                 apiKey: notionKeyInput === '********' ? null : notionKeyInput, 
+                                 databaseId: notionDbInput, 
+                                 enabled: true 
+                               })}
+                               className="w-full py-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-lg hover:bg-black transition-colors"
+                             >
+                               Update Connection
+                             </button>
+                          )}
+
                           <button
-                            onClick={() => handleNotionAction('send-test')}
-                            disabled={loading}
-                            className="flex-1 py-1.5 px-2 bg-black text-white text-[9px] font-bold rounded hover:bg-gray-900 transition-colors disabled:opacity-50"
+                             onClick={() => {
+                               handleNotionAction('disconnect');
+                               setNotionKeyInput('');
+                               setNotionDbInput('');
+                             }}
+                             className="w-full py-1.5 border border-red-100 text-red-500 hover:bg-red-50 text-[10px] font-bold rounded-lg transition-colors"
                           >
-                            Send Test Sample
-                          </button>
-                          <button
-                            onClick={() => handleNotionAction('sync-existing')}
-                            disabled={loading}
-                            className="flex-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-600 text-[9px] font-bold rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
-                          >
-                            Sync Existing
-                          </button>
-                          <button
-                             onClick={() => handleNotionAction('disconnect')}
-                             className="px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors font-bold"
-                          >
-                             ×
+                             Disconnect Workspace
                           </button>
                         </div>
                       )}
                       
                       <p className="text-[9px] text-gray-400 px-1 leading-tight mt-1">
-                        Connect to a Notion database. Ensure the integration has access to the page.
+                        {!notionStatus?.apiKey 
+                          ? "Enter your credentials and click Connect to start syncing."
+                          : "Connected. Your submissions will now automatically sync to Notion."}
                       </p>
                     </div>
+
                   </div>
                 </div>
 
