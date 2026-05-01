@@ -132,8 +132,11 @@ export async function POST(
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-  } catch (err) {
+  } catch (err: any) {
     console.error('Notion POST error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: err.message || 'Internal server error',
+      details: err.toString()
+    }, { status: 500 })
   }
 }
