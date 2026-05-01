@@ -26,6 +26,13 @@ const SlackIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const NotionIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M4.459 4.211c.524.062.929.233 1.215.514.286.281.429.742.429 1.383v11.777c0 .641-.143 1.102-.429 1.383-.286.281-.691.452-1.215.514V19.78h6.467v-.211c-.524-.062-.929-.233-1.215-.514-.286-.281-.429-.742-.429-1.383V7.127l7.56 12.392c.334.524.786.786 1.355.786h3.111V19.78c-.524-.062-.929-.233-1.215-.514-.286-.281-.429-.742-.429-1.383V6.108c0-.641.143-1.102.429-1.383.286-.281.691-.452 1.215-.514v-.211H12.923v.211c.524.062.929.233 1.215.514.286.281.429.742.429 1.383v10.597L7.005 4.001h-2.546v.21zm.546 15.569c-.286 0-.514-.114-.686-.343-.172-.229-.258-.533-.258-.913V6.108c0-.38.086-.685.258-.914.172-.229.4-.343.686-.343s.514.114.686.343.258.534.258.914v12.406c0 .38-.086.684-.258.913-.172.229-.4.343-.686.343zM18.995 4c-.286 0-.514.114-.686.343-.172.229-.258.533-.258.914v13.242c0 .38.086.684.258.913.172.229.4.343.686.343.286 0 .514-.114.686-.343.172-.229.258-.533.258-.913V5.257c0-.38-.086-.684-.258-.914-.172-.229-.4-.343-.686-.343z"/>
+  </svg>
+)
+
+
 const FIELD_TOOLS: { type: FieldType; label: string; icon: React.ReactNode; desc: string }[] = [
   { type: 'text', label: 'Short Text', icon: <Type className="w-4 h-4" />, desc: 'Simple text input' },
   { type: 'email', label: 'Email Address', icon: <Mail className="w-4 h-4" />, desc: 'Validates email formats' },
@@ -61,6 +68,7 @@ export function Sidebar() {
   const [airtableStatus, setAirtableStatus] = useState<any>(null)
   const [slackStatus, setSlackStatus] = useState<any>(null)
   const [emailStatus, setEmailStatus] = useState<any>(null)
+  const [notionStatus, setNotionStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -71,20 +79,22 @@ export function Sidebar() {
 
   const fetchStatus = async () => {
     try {
-      const [sheetResp, zapierResp, airtableResp, slackResp, emailResp] = await Promise.all([
+      const [sheetResp, zapierResp, airtableResp, slackResp, emailResp, notionResp] = await Promise.all([
         fetch(`/api/forms/${form.id}/integrations/google-sheets`),
         fetch(`/api/forms/${form.id}/integrations/zapier`),
         fetch(`/api/forms/${form.id}/integrations/airtable`),
         fetch(`/api/forms/${form.id}/integrations/slack`),
-        fetch(`/api/forms/${form.id}/integrations/email`)
+        fetch(`/api/forms/${form.id}/integrations/email`),
+        fetch(`/api/forms/${form.id}/integrations/notion`)
       ])
       
-      const [sheetData, zapierData, airtableData, slackData, emailData] = await Promise.all([
+      const [sheetData, zapierData, airtableData, slackData, emailData, notionData] = await Promise.all([
         sheetResp.json(),
         zapierResp.json(),
         airtableResp.json(),
         slackResp.json(),
-        emailResp.json()
+        emailResp.json(),
+        notionResp.json()
       ])
       
       setSheetStatus(sheetData)
@@ -92,6 +102,8 @@ export function Sidebar() {
       setAirtableStatus(airtableData)
       setSlackStatus(slackData)
       setEmailStatus(emailData)
+      setNotionStatus(notionData)
+
     } catch (err) {
       console.error('Failed to fetch integration status:', err)
     }
@@ -188,6 +200,31 @@ export function Sidebar() {
       }
     } catch (err) {
       console.error(`Slack action ${action} failed:`, err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNotionAction = async (action: string, payload: any = {}) => {
+    setLoading(true)
+    try {
+      const resp = await fetch(`/api/forms/${form.id}/integrations/notion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        if (action === 'sync-existing') {
+          alert(data.message || 'Sync complete!')
+        }
+        await fetchStatus()
+      } else {
+        const data = await resp.json()
+        alert(data.error || 'Notion action failed')
+      }
+    } catch (err) {
+      console.error(`Notion action ${action} failed:`, err)
     } finally {
       setLoading(false)
     }
@@ -1259,6 +1296,117 @@ export function Sidebar() {
                     </div>
                   </div>
                 </div>
+
+                {/* NOTION INTEGRATION */}
+                <div className="group/card relative">
+                  <div className={cn(
+                    "relative overflow-hidden p-4 rounded-2xl border transition-all duration-300",
+                    notionStatus?.apiKey 
+                      ? "bg-white border-black/10 shadow-sm" 
+                      : "bg-gray-50 border-gray-100 grayscale hover:grayscale-0 opacity-70 hover:opacity-100"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn(
+                          "p-2 rounded-xl transition-colors",
+                          notionStatus?.apiKey ? "bg-black text-white" : "bg-gray-200 text-gray-500"
+                        )}>
+                          <NotionIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900">Notion</h4>
+                          <p className="text-[10px] text-gray-500 font-medium">Database sync</p>
+                        </div>
+                      </div>
+                      {notionStatus?.apiKey && (
+                        <button
+                          onClick={() => handleNotionAction('update', { ...notionStatus, enabled: !notionStatus.isEnabled })}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none",
+                            notionStatus.isEnabled ? "bg-black" : "bg-gray-200"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200",
+                              notionStatus.isEnabled ? "translate-x-4" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Internal Integration Token</label>
+                        <input
+                          type="password"
+                          placeholder="secret_..."
+                          defaultValue={notionStatus?.apiKey || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (notionStatus?.apiKey || '')) {
+                              handleNotionAction('update', { 
+                                apiKey: e.target.value, 
+                                databaseId: notionStatus?.databaseId,
+                                enabled: true 
+                              })
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Database ID</label>
+                        <input
+                          type="text"
+                          placeholder="Paste database ID here..."
+                          defaultValue={notionStatus?.databaseId || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== (notionStatus?.databaseId || '')) {
+                              handleNotionAction('update', { 
+                                apiKey: notionStatus?.apiKey,
+                                databaseId: e.target.value, 
+                                enabled: true 
+                              })
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                        />
+                      </div>
+
+                      {notionStatus?.apiKey && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => handleNotionAction('send-test')}
+                            disabled={loading}
+                            className="flex-1 py-1.5 px-2 bg-black text-white text-[9px] font-bold rounded hover:bg-gray-900 transition-colors disabled:opacity-50"
+                          >
+                            Send Test Sample
+                          </button>
+                          <button
+                            onClick={() => handleNotionAction('sync-existing')}
+                            disabled={loading}
+                            className="flex-1 py-1.5 px-2 bg-white border border-gray-200 text-gray-600 text-[9px] font-bold rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            Sync Existing
+                          </button>
+                          <button
+                             onClick={() => handleNotionAction('disconnect')}
+                             className="px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors font-bold"
+                          >
+                             ×
+                          </button>
+                        </div>
+                      )}
+                      
+                      <p className="text-[9px] text-gray-400 px-1 leading-tight mt-1">
+                        Connect to a Notion database. Ensure the integration has access to the page.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 </div>{/* closes pt-2 space-y-3 */}
               </div>{/* closes p-3 bg-gray-50 integrations container */}
             </div>{/* closes outer integrations wrapper */}

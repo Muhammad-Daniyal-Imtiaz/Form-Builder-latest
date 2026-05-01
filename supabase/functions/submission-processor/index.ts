@@ -385,6 +385,53 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
     })());
   }
 
+  // NOTION
+  if (formConfig.notion_enabled && formConfig.notion_api_key && formConfig.notion_database_id) {
+    tasks.push((async () => {
+      try {
+        const apiKey = decrypt(formConfig.notion_api_key);
+        const databaseId = decrypt(formConfig.notion_database_id);
+
+        const properties: Record<string, any> = {};
+        let titleKey = Object.keys(data).find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('subject')) || Object.keys(data)[0];
+
+        for (const [key, value] of Object.entries(data)) {
+          const sanitizedKey = key.replace(/[\[\]]/g, '');
+          if (key === titleKey) {
+            properties['Name'] = { title: [{ text: { content: String(value || 'Untitled') } }] };
+          } else {
+            properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
+          }
+        }
+
+        if (!properties['Name']) {
+          properties['Name'] = { title: [{ text: { content: `Submission ${submission.id.slice(0, 8)}` } }] };
+        }
+
+        const res = await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            parent: { database_id: databaseId },
+            properties
+          })
+        });
+
+        if (res.ok) {
+          await supabase.from('submissions').update({ notion_synced: true }).eq('id', submission.id);
+        } else {
+          const err = await res.json();
+          console.error("[Notion Error]", err.message);
+        }
+      } catch (e) { console.error("[Notion Error]", e.message); }
+    })());
+  }
+
+
   await Promise.allSettled(tasks);
 }
 
