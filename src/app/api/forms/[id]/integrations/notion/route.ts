@@ -1,7 +1,7 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { encrypt, decrypt } from '@/utils/encryption'
-import { syncSubmissionToNotion, syncMultipleSubmissionsToNotion } from '@/lib/notion'
+import { syncSubmissionToNotion, syncMultipleSubmissionsToNotion, createDatabaseInNotion } from '@/lib/notion'
 
 export async function GET(
   request: Request,
@@ -128,6 +128,21 @@ export async function POST(
         return NextResponse.json({ success: true, message: 'Test sample sent to Notion!' })
       } else {
         return NextResponse.json({ error: res.error }, { status: 400 })
+      }
+    }
+
+    // 5. CREATE DATABASE
+    if (action === 'create-database') {
+      const { title, parentPageId } = body;
+      if (!title || !parentPageId) {
+        return NextResponse.json({ error: 'Title and Parent Page ID are required' }, { status: 400 });
+      }
+      
+      const result = await createDatabaseInNotion(id, title, parentPageId);
+      if (result.success) {
+        return NextResponse.json({ success: true, databaseId: result.databaseId, message: 'Database created and connected!' });
+      } else {
+        return NextResponse.json({ error: result.error }, { status: 400 });
       }
     }
 

@@ -432,7 +432,19 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
         const apiKey = await decrypt(formConfig.notion_api_key);
         const databaseId = await decrypt(formConfig.notion_database_id);
 
+        // 1. Fetch Database Schema
+        const schemaRes = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28'
+          }
+        });
+        
+        const existingProps = schemaRes.ok ? Object.keys((await schemaRes.json()).properties || {}) : [];
+
+        // 2. Prepare Properties & Missing Columns
         const properties: Record<string, any> = {};
+        const missingProps: Record<string, any> = {};
         let titleKey = Object.keys(data).find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('subject')) || Object.keys(data)[0];
 
         for (const [key, value] of Object.entries(data)) {
@@ -441,6 +453,9 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
             properties['Name'] = { title: [{ text: { content: String(value || 'Untitled') } }] };
           } else {
             properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
+            if (!existingProps.includes(sanitizedKey)) {
+              missingProps[sanitizedKey] = { rich_text: {} };
+            }
           }
         }
 
@@ -448,6 +463,20 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
           properties['Name'] = { title: [{ text: { content: `Submission ${submission.id.slice(0, 8)}` } }] };
         }
 
+        // 3. Auto-Create Columns
+        if (Object.keys(missingProps).length > 0) {
+          await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Notion-Version': '2022-06-28',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ properties: missingProps })
+          });
+        }
+
+        // 4. Create Page
         const res = await fetch('https://api.notion.com/v1/pages', {
           method: 'POST',
           headers: {
@@ -470,6 +499,7 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
       } catch (e) { console.error("[Notion Error]", e.message); }
     })());
   }
+
 
 
   await Promise.allSettled(tasks);
