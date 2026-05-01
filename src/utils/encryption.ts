@@ -70,7 +70,8 @@ async function decryptWeb(payload: string, secret: string) {
   const parts = payload.split(':');
   if (parts.length < 3) throw new Error('Invalid encrypted payload');
   
-  const [, ivPart, encryptedPart] = parts;
+  const ivPart = parts[2];
+  const encryptedPart = parts[3];
   const key = await getCryptoKey(secret);
   const iv = fromBase64Url(ivPart);
   const data = fromBase64Url(encryptedPart);
