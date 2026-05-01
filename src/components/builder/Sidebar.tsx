@@ -1370,12 +1370,13 @@ export function Sidebar() {
                           onClick={() => handleNotionAction('update', { 
                             apiKey: notionKeyInput, 
                             databaseId: notionDbInput, 
-                            enabled: true 
+                            enabled: true,
+                            setupColumns: true
                           })}
-                          disabled={loading || !notionKeyInput}
+                          disabled={loading || !notionKeyInput || !notionDbInput}
                           className="w-full py-2 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-900 transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:shadow-none"
                         >
-                          {loading ? 'Connecting...' : 'Connect Notion'}
+                          {loading ? 'Connecting...' : 'Connect & Setup Notion'}
                         </button>
                       ) : (
                         <div className="space-y-2">
@@ -1401,59 +1402,21 @@ export function Sidebar() {
                                onClick={() => handleNotionAction('update', { 
                                  apiKey: notionKeyInput === '********' ? null : notionKeyInput, 
                                  databaseId: notionDbInput, 
-                                 enabled: true 
+                                 enabled: true,
+                                 setupColumns: true
                                })}
+                               disabled={loading}
                                className="w-full py-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-lg hover:bg-black transition-colors"
                              >
-                               Update Connection
+                               {loading ? 'Updating...' : 'Update & Sync Columns'}
                              </button>
                           )}
-
-                          {/* --- MAGIC AUTO-CREATE --- */}
-                          <div className="mt-3 p-2.5 border border-dashed border-gray-200 rounded-xl bg-gray-50/50 space-y-2">
-                            <p className="text-[10px] font-black text-gray-800 flex items-center gap-1">
-                              <span className="p-1 bg-black text-white rounded text-[8px]">MAGIC</span>
-                              Auto-Create Database
-                            </p>
-                            <input
-                              type="text"
-                              placeholder="New Database Name..."
-                              value={newDbName}
-                              onChange={(e) => setNewDbName(e.target.value)}
-                              className="w-full px-2 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] outline-none"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Parent Page ID..."
-                              value={parentPageId}
-                              onChange={(e) => setParentPageId(e.target.value)}
-                              className="w-full px-2 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] outline-none"
-                            />
-                            <button
-                              onClick={() => {
-                                handleNotionAction('create-database', { 
-                                  title: newDbName, 
-                                  parentPageId,
-                                  notionKey: notionKeyInput === '********' ? null : notionKeyInput 
-                                });
-                              }}
-                              disabled={loading || !newDbName || !parentPageId}
-                              className="w-full py-1.5 bg-emerald-500 text-white text-[9px] font-black rounded-lg hover:bg-emerald-600 transition-all disabled:opacity-50"
-                            >
-                              {loading ? 'Creating...' : 'Create & Connect in Notion'}
-                            </button>
-                            <p className="text-[8px] text-gray-400 leading-tight">
-                              Creates a fresh database in Notion with all your form fields as columns.
-                            </p>
-                          </div>
 
                           <button
                              onClick={() => {
                                handleNotionAction('disconnect');
                                setNotionKeyInput('');
                                setNotionDbInput('');
-                               setNewDbName('');
-                               setParentPageId('');
                              }}
                              className="w-full py-1.5 border border-red-100 text-red-500 hover:bg-red-50 text-[10px] font-bold rounded-lg transition-colors"
                           >
@@ -1461,6 +1424,7 @@ export function Sidebar() {
                           </button>
                         </div>
                       )}
+
 
                       
                       <p className="text-[9px] text-gray-400 px-1 leading-tight mt-1">

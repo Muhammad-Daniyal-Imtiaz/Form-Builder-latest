@@ -127,6 +127,55 @@ export async function syncMultipleSubmissionsToNotion(formId: string, submission
   return { count: successCount };
 }
 
+export async function setupNotionDatabase(formId: string, providedApiKey?: string, providedDatabaseId?: string) {
+  const adminClient = createAdminClient();
+  
+  let apiKey = providedApiKey;
+  let databaseId = providedDatabaseId;
+
+  if (!apiKey || !databaseId) {
+    const { data: form } = await adminClient.from('forms').select('notion_api_key, notion_database_id').eq('id', formId).single();
+    if (!apiKey && form?.notion_api_key) apiKey = await decrypt(form.notion_api_key);
+    if (!databaseId && form?.notion_database_id) databaseId = await decrypt(form.notion_database_id);
+  }
+
+  if (!apiKey || !databaseId) return { success: false, error: 'Missing Notion credentials' };
+
+  const schemaRes = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Notion-Version': '2022-06-28' }
+  });
+
+  if (!schemaRes.ok) {
+     const err = await schemaRes.json();
+     return { success: false, error: `Notion Error: ${err.message}` };
+  }
+
+  const schema = await schemaRes.json();
+  const existingProps = Object.keys(schema.properties || {});
+  const { data: fields } = await adminClient.from('form_fields').select('label').eq('form_id', formId);
+  const missingProps: Record<string, any> = {};
+
+  if (fields) {
+    fields.forEach(field => {
+      const sanitizedKey = field.label.replace(/[\[\]]/g, '').trim();
+      if (sanitizedKey && sanitizedKey.toLowerCase() !== 'name' && !existingProps.includes(sanitizedKey)) {
+        missingProps[sanitizedKey] = { rich_text: {} };
+      }
+    });
+  }
+
+  if (Object.keys(missingProps).length > 0) {
+    const patchRes = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ properties: missingProps })
+    });
+    if (!patchRes.ok) return { success: false, error: 'Failed to update Notion properties' };
+  }
+
+  return { success: true };
+}
+
 export async function createDatabaseInNotion(formId: string, title: string, parentPageId: string, providedApiKey?: string) {
   const adminClient = createAdminClient();
   

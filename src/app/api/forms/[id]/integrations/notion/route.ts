@@ -1,7 +1,7 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { encrypt, decrypt } from '@/utils/encryption'
-import { syncSubmissionToNotion, syncMultipleSubmissionsToNotion, createDatabaseInNotion } from '@/lib/notion'
+import { syncSubmissionToNotion, syncMultipleSubmissionsToNotion, createDatabaseInNotion, setupNotionDatabase } from '@/lib/notion'
 
 export async function GET(
   request: Request,
@@ -26,7 +26,7 @@ export async function GET(
 
     return NextResponse.json({
       apiKey: form?.notion_api_key ? '********' : null,
-      databaseId: form?.notion_database_id ? await decrypt(form.notion_database_id) : null,
+      databaseId: form?.notion_database_id ? 'Connected' : null,
       isEnabled: form?.notion_enabled
     })
   } catch (err) {
@@ -53,7 +53,7 @@ export async function POST(
 
     // 1. UPDATE CONFIG
     if (action === 'update') {
-      const { apiKey, databaseId, enabled } = body
+      const { apiKey, databaseId, enabled, setupColumns } = body
       const updateData: any = {
         notion_enabled: enabled
       }
@@ -72,7 +72,12 @@ export async function POST(
         .eq('id', id)
 
       if (error) throw error
-      return NextResponse.json({ success: true })
+
+      if (setupColumns) {
+        await setupNotionDatabase(id, apiKey && apiKey !== '********' ? apiKey : undefined, databaseId && databaseId !== '********' ? databaseId : undefined);
+      }
+
+      return NextResponse.json({ success: true, message: 'Notion settings updated!' })
     }
 
     // 2. DISCONNECT
