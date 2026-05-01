@@ -74,10 +74,13 @@ export async function POST(
       if (error) throw error
 
       if (setupColumns) {
-        await setupNotionDatabase(id, apiKey && apiKey !== '********' ? apiKey : undefined, databaseId && databaseId !== '********' ? databaseId : undefined);
+        const setupResult = await setupNotionDatabase(id, apiKey && apiKey !== '********' ? apiKey : undefined, databaseId && databaseId !== '********' ? databaseId : undefined);
+        if (!setupResult.success) {
+          return NextResponse.json({ error: setupResult.error }, { status: 400 });
+        }
       }
 
-      return NextResponse.json({ success: true, message: 'Notion settings updated!' })
+      return NextResponse.json({ success: true, message: 'Notion settings updated and columns synced!' })
     }
 
     // 1.5 LIST DATABASES
@@ -117,9 +120,16 @@ export async function POST(
       }
 
       const result = await syncMultipleSubmissionsToNotion(id, unsynced.map(s => s.id))
+      let message = `Successfully synced ${result.count} submissions to Notion!`;
+      if ((result as any).failed > 0) {
+         message += `\n\n${(result as any).failed} failed.`;
+         if ((result as any).errors && (result as any).errors.length > 0) {
+            message += `\nErrors:\n- ${(result as any).errors.join('\n- ')}`;
+         }
+      }
       return NextResponse.json({ 
         success: true, 
-        message: `Successfully synced ${result.count} submissions to Notion!${ (result as any).failed > 0 ? ` (${ (result as any).failed } failed)` : '' }`,
+        message,
         count: result.count
       })
     }
