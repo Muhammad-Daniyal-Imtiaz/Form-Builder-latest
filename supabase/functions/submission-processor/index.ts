@@ -440,7 +440,9 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
           }
         });
         
-        const existingProps = schemaRes.ok ? Object.keys((await schemaRes.json()).properties || {}) : [];
+        const schema = schemaRes.ok ? await schemaRes.json() : { properties: {} };
+        const schemaProps = schema.properties || {};
+        const existingProps = Object.keys(schemaProps);
 
         // 2. Prepare Properties & Missing Columns
         const properties: Record<string, any> = {};
@@ -449,15 +451,27 @@ async function runIntegrations(formConfig: any, submission: any, data: any) {
 
         for (const [key, value] of Object.entries(data)) {
           const sanitizedKey = key.replace(/[\[\]]/g, '');
-          if (key === titleKey) {
+          const propType = schemaProps[sanitizedKey]?.type;
+
+          if (key === titleKey || sanitizedKey === 'Name') {
             properties['Name'] = { title: [{ text: { content: String(value || 'Untitled') } }] };
+          } else if (propType) {
+            switch (propType) {
+              case 'email': properties[sanitizedKey] = { email: String(value || '') }; break;
+              case 'url': properties[sanitizedKey] = { url: String(value || '') }; break;
+              case 'number': properties[sanitizedKey] = { number: Number(value) || 0 }; break;
+              case 'phone_number': properties[sanitizedKey] = { phone_number: String(value || '') }; break;
+              case 'date': properties[sanitizedKey] = { date: { start: new Date(String(value)).toISOString() } }; break;
+              case 'checkbox': properties[sanitizedKey] = { checkbox: Boolean(value) }; break;
+              case 'select': properties[sanitizedKey] = { select: { name: String(value) } }; break;
+              default: properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
+            }
           } else {
             properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
-            if (!existingProps.includes(sanitizedKey)) {
-              missingProps[sanitizedKey] = { rich_text: {} };
-            }
+            missingProps[sanitizedKey] = { rich_text: {} };
           }
         }
+
 
         if (!properties['Name']) {
           properties['Name'] = { title: [{ text: { content: `Submission ${submission.id.slice(0, 8)}` } }] };

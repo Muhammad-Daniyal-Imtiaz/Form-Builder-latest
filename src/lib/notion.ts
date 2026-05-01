@@ -33,7 +33,8 @@ export async function syncSubmissionToNotion(formId: string, submission: any) {
     }
 
     const schema = await schemaRes.json();
-    const existingProps = Object.keys(schema.properties || {});
+    const schemaProps = schema.properties || {};
+    const existingProps = Object.keys(schemaProps);
 
     // 3. Prepare Properties & Detect Missing Ones
     const properties: any = {};
@@ -44,16 +45,41 @@ export async function syncSubmissionToNotion(formId: string, submission: any) {
     
     for (const [key, value] of Object.entries(submissionData)) {
       const sanitizedKey = key.replace(/[\[\]]/g, '');
-      
-      if (key === titleKey) {
+      const propType = schemaProps[sanitizedKey]?.type;
+
+      if (key === titleKey || sanitizedKey === 'Name') {
         properties['Name'] = { title: [{ text: { content: String(value || 'Untitled') } }] };
-      } else {
-        properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
-        
-        // If property doesn't exist in Notion, prepare to create it
-        if (!existingProps.includes(sanitizedKey)) {
-          missingProps[sanitizedKey] = { rich_text: {} };
+      } else if (propType) {
+        // Map data according to Notion Property Type
+        switch (propType) {
+          case 'email':
+            properties[sanitizedKey] = { email: String(value || '') };
+            break;
+          case 'url':
+            properties[sanitizedKey] = { url: String(value || '') };
+            break;
+          case 'number':
+            properties[sanitizedKey] = { number: Number(value) || 0 };
+            break;
+          case 'phone_number':
+            properties[sanitizedKey] = { phone_number: String(value || '') };
+            break;
+          case 'date':
+            properties[sanitizedKey] = { date: { start: new Date(String(value)).toISOString() } };
+            break;
+          case 'checkbox':
+            properties[sanitizedKey] = { checkbox: Boolean(value) };
+            break;
+          case 'select':
+            properties[sanitizedKey] = { select: { name: String(value) } };
+            break;
+          default:
+            properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
         }
+      } else {
+        // Missing property: setup for auto-creation
+        properties[sanitizedKey] = { rich_text: [{ text: { content: String(value || '') } }] };
+        missingProps[sanitizedKey] = { rich_text: {} };
       }
     }
 
