@@ -265,3 +265,35 @@ export async function createDatabaseInNotion(formId: string, title: string, pare
   }
 }
 
+export async function listAvailableDatabases(apiKey: string) {
+  try {
+    const response = await fetch('https://api.notion.com/v1/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Notion-Version': '2022-06-28',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        filter: { property: 'object', value: 'database' },
+        page_size: 100
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, error: err.message };
+    }
+
+    const data = await response.json();
+    const databases = data.results.map((db: any) => ({
+      id: db.id.replace(/-/g, ''),
+      title: db.title?.[0]?.plain_text || 'Untitled Database'
+    }));
+
+    return { success: true, databases };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+

@@ -71,8 +71,7 @@ export function Sidebar() {
   const [notionStatus, setNotionStatus] = useState<any>(null)
   const [notionKeyInput, setNotionKeyInput] = useState('')
   const [notionDbInput, setNotionDbInput] = useState('')
-  const [newDbName, setNewDbName] = useState('')
-  const [parentPageId, setParentPageId] = useState('')
+  const [availableDatabases, setAvailableDatabases] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -219,14 +218,19 @@ export function Sidebar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, ...payload })
       })
+      const data = await resp.json()
       if (resp.ok) {
-        const data = await resp.json()
-        if (action === 'sync-existing') {
-          alert(data.message || 'Sync complete!')
+        if (action === 'list-databases') {
+          if (data.success) {
+            setAvailableDatabases(data.databases);
+          } else {
+            alert(data.error || 'Failed to list databases');
+          }
+        } else if (action === 'sync-existing' || action === 'send-test') {
+          alert(data.message || 'Action complete!')
         }
         await fetchStatus()
       } else {
-        const data = await resp.json()
         alert(data.error || 'Notion action failed')
       }
     } catch (err) {
@@ -1355,14 +1359,36 @@ export function Sidebar() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Database ID</label>
-                        <input
-                          type="text"
-                          placeholder="Paste database ID here..."
-                          value={notionDbInput}
-                          onChange={(e) => setNotionDbInput(e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        />
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight px-1">Database</label>
+                        {availableDatabases.length > 0 ? (
+                          <select
+                            value={notionDbInput}
+                            onChange={(e) => setNotionDbInput(e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                          >
+                            <option value="">Select a database...</option>
+                            {availableDatabases.map(db => (
+                              <option key={db.id} value={db.id}>{db.title}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Paste ID or fetch list..."
+                              value={notionDbInput}
+                              onChange={(e) => setNotionDbInput(e.target.value)}
+                              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                            />
+                            <button
+                              onClick={() => handleNotionAction('list-databases', { apiKey: notionKeyInput })}
+                              disabled={loading || !notionKeyInput || notionKeyInput === '********'}
+                              className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                              Fetch
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {!notionStatus?.apiKey ? (
@@ -1417,6 +1443,7 @@ export function Sidebar() {
                                handleNotionAction('disconnect');
                                setNotionKeyInput('');
                                setNotionDbInput('');
+                               setAvailableDatabases([]);
                              }}
                              className="w-full py-1.5 border border-red-100 text-red-500 hover:bg-red-50 text-[10px] font-bold rounded-lg transition-colors"
                           >
@@ -1424,6 +1451,7 @@ export function Sidebar() {
                           </button>
                         </div>
                       )}
+
 
 
                       

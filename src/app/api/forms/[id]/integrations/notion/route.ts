@@ -1,7 +1,7 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { encrypt, decrypt } from '@/utils/encryption'
-import { syncSubmissionToNotion, syncMultipleSubmissionsToNotion, createDatabaseInNotion, setupNotionDatabase } from '@/lib/notion'
+import { syncSubmissionToNotion, syncMultipleSubmissionsToNotion, createDatabaseInNotion, setupNotionDatabase, listAvailableDatabases } from '@/lib/notion'
 
 export async function GET(
   request: Request,
@@ -78,6 +78,14 @@ export async function POST(
       }
 
       return NextResponse.json({ success: true, message: 'Notion settings updated!' })
+    }
+
+    // 1.5 LIST DATABASES
+    if (action === 'list-databases') {
+      const { apiKey } = body
+      if (!apiKey) return NextResponse.json({ error: 'Missing API Key' }, { status: 400 });
+      const result = await listAvailableDatabases(apiKey);
+      return NextResponse.json(result);
     }
 
     // 2. DISCONNECT
