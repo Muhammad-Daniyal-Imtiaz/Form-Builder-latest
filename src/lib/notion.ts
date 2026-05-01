@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/utils/supabase/server';
-import { decrypt } from '@/utils/encryption';
+import { decrypt, encrypt } from '@/utils/encryption';
 
 export async function syncSubmissionToNotion(formId: string, submission: any) {
   const adminClient = createAdminClient();
