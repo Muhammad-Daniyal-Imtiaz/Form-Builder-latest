@@ -1431,7 +1431,11 @@ export function Sidebar() {
                             />
                             <button
                               onClick={() => {
-                                handleNotionAction('create-database', { title: newDbName, parentPageId });
+                                handleNotionAction('create-database', { 
+                                  title: newDbName, 
+                                  parentPageId,
+                                  notionKey: notionKeyInput === '********' ? null : notionKeyInput 
+                                });
                               }}
                               disabled={loading || !newDbName || !parentPageId}
                               className="w-full py-1.5 bg-emerald-500 text-white text-[9px] font-black rounded-lg hover:bg-emerald-600 transition-all disabled:opacity-50"

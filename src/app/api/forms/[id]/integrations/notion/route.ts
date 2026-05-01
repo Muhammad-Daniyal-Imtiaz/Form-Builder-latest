@@ -133,12 +133,12 @@ export async function POST(
 
     // 5. CREATE DATABASE
     if (action === 'create-database') {
-      const { title, parentPageId } = body;
+      const { title, parentPageId, notionKey } = body;
       if (!title || !parentPageId) {
         return NextResponse.json({ error: 'Title and Parent Page ID are required' }, { status: 400 });
       }
       
-      const result = await createDatabaseInNotion(id, title, parentPageId);
+      const result = await createDatabaseInNotion(id, title, parentPageId, notionKey);
       if (result.success) {
         return NextResponse.json({ success: true, databaseId: result.databaseId, message: 'Database created and connected!' });
       } else {

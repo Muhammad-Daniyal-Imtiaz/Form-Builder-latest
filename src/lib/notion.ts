@@ -127,27 +127,29 @@ export async function syncMultipleSubmissionsToNotion(formId: string, submission
   return { count: successCount };
 }
 
-export async function createDatabaseInNotion(formId: string, title: string, parentPageId: string) {
+export async function createDatabaseInNotion(formId: string, title: string, parentPageId: string, providedApiKey?: string) {
   const adminClient = createAdminClient();
   
-  // 1. Get Form & Fields
-  const { data: form } = await adminClient.from('forms').select('notion_api_key').eq('id', formId).single();
+  // 1. Get API Key
+  let apiKey = providedApiKey;
+  if (!apiKey) {
+    const { data: form } = await adminClient.from('forms').select('notion_api_key').eq('id', formId).single();
+    if (!form?.notion_api_key) return { success: false, error: 'No API Key found. Please connect your token first.' };
+    apiKey = await decrypt(form.notion_api_key);
+  }
+
   const { data: fields } = await adminClient.from('form_fields').select('label').eq('form_id', formId);
+  const sanitizedParentId = parentPageId.replace(/-/g, '').trim();
 
-  if (!form?.notion_api_key) return { success: false, error: 'No API Key found. Please connect your token first.' };
-  
-  const apiKey = await decrypt(form.notion_api_key);
-  const sanitizedParentId = parentPageId.replace(/-/g, '');
-
-  // 2. Prepare Properties from form fields
+  // 2. Prepare Properties
   const properties: any = {
-    'Name': { title: {} } // Required Title property
+    'Name': { title: {} }
   };
 
   if (fields) {
     fields.forEach(field => {
-      const sanitizedKey = field.label.replace(/[\[\]]/g, '');
-      if (sanitizedKey.toLowerCase() !== 'name') {
+      const sanitizedKey = field.label.replace(/[\[\]]/g, '').trim();
+      if (sanitizedKey && sanitizedKey.toLowerCase() !== 'name') {
         properties[sanitizedKey] = { rich_text: {} };
       }
     });
@@ -164,13 +166,16 @@ export async function createDatabaseInNotion(formId: string, title: string, pare
       },
       body: JSON.stringify({
         parent: { page_id: sanitizedParentId },
-        title: [{ text: { content: title } }],
+        title: [{ text: { content: title || 'Form Submissions' } }],
         properties
       })
     });
 
     const result = await res.json();
-    if (!res.ok) throw new Error(result.message || 'Failed to create database');
+    if (!res.ok) {
+       console.error('[Notion Create DB Error]', result);
+       return { success: false, error: result.message || 'Failed to create database' };
+    }
 
     // 4. Update Form with the new Database ID
     const newDbId = result.id.replace(/-/g, '');
@@ -181,7 +186,7 @@ export async function createDatabaseInNotion(formId: string, title: string, pare
 
     return { success: true, databaseId: newDbId };
   } catch (err: any) {
-    console.error('Create Database Error:', err);
     return { success: false, error: err.message };
   }
 }
+
