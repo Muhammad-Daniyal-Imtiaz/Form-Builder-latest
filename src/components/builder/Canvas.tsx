@@ -495,8 +495,10 @@ export function Canvas() {
 
       {/* --- BRANDING SIDE (SPLIT/SIDEBAR) --- */}
       {(isSplit || isSidebar) && (
-        <div className={cn(
-          "relative z-10 p-8 lg:p-12 flex flex-col justify-between border-white/10",
+        <div 
+          onClick={() => setActiveFieldId('header')}
+          className={cn(
+          "p-12 relative flex flex-col justify-center cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500/50",
           isSplit ? "lg:w-1/2 min-h-[300px] lg:min-h-full" : "lg:w-[320px] lg:shrink-0 lg:min-h-full border-r",
           side === 'right' && "lg:order-last border-l"
         )} style={{ 
@@ -505,17 +507,17 @@ export function Canvas() {
             : customStyles.headerBg,
           color: customStyles.headerText
         }}>
-          <div className="relative z-10">
+          <div className="relative z-10 pointer-events-none">
             {form?.logo_url && (
               <div className="mb-10" style={{ textAlign: customStyles.logoAlignment }}>
                 <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block' }} />
               </div>
             )}
-            <h2 className="text-3xl lg:text-5xl font-black mb-4" style={{ textAlign: customStyles.headerAlignment }}>{form?.title || 'Form Title'}</h2>
-            <p className="text-lg opacity-80" style={{ textAlign: customStyles.headerAlignment }}>{form?.description || 'Description...'}</p>
+            <h2 className="text-3xl lg:text-5xl font-black mb-4" style={{ textAlign: customStyles.headerAlignment, fontFamily: customStyles.fontFamily }}>{form?.title || 'Form Title'}</h2>
+            <p className="text-lg opacity-80" style={{ textAlign: customStyles.headerAlignment, fontFamily: customStyles.fontFamily }}>{form?.description || 'Description...'}</p>
           </div>
           
-          <div className="relative z-10 mt-12">
+          <div className="relative z-10 mt-12 pointer-events-none">
             {customStyles.secondaryImageUrl && (
               <div className="pt-8 border-t border-white/20">
                 <img src={customStyles.secondaryImageUrl} alt="Secondary" className="max-h-12 opacity-60" />
@@ -553,14 +555,20 @@ export function Canvas() {
                     <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
                   </div>
                 )}
-                <div className="mb-12 border-b border-gray-100 pb-10 px-10 pt-10" style={{ textAlign: customStyles.headerAlignment }}>
-                  {form?.logo_url && (
-                    <div className="mb-8" style={{ textAlign: customStyles.logoAlignment }}>
-                      <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-                    </div>
-                  )}
-                  <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: customStyles.bodyText }}>{form?.title || 'Form Title'}</h1>
-                  <p className="text-lg opacity-60 leading-relaxed font-medium" style={{ color: customStyles.bodyText }}>{form?.description || 'Description...'}</p>
+                <div 
+                  onClick={() => setActiveFieldId('header')}
+                  className="mb-12 border-b border-gray-100 pb-10 px-10 pt-10 cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500/50" 
+                  style={{ textAlign: customStyles.headerAlignment }}
+                >
+                  <div className="pointer-events-none">
+                    {form?.logo_url && (
+                      <div className="mb-8" style={{ textAlign: customStyles.logoAlignment }}>
+                        <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
+                      </div>
+                    )}
+                    <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: customStyles.bodyText, fontFamily: customStyles.fontFamily }}>{form?.title || 'Form Title'}</h1>
+                    <p className="text-lg opacity-60 leading-relaxed font-medium" style={{ color: customStyles.bodyText, fontFamily: customStyles.fontFamily }}>{form?.description || 'Description...'}</p>
+                  </div>
                 </div>
               </>
             )}

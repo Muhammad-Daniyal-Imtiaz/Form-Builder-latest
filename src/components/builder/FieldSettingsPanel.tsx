@@ -6,9 +6,13 @@ import { Settings, X, GripVertical, Plus, Trash2, GitBranch } from 'lucide-react
 import { useBuilder } from './BuilderContext'
 import { cn } from '@/utils/cn'
 import { useTheme } from '@/components/ThemeProvider'
+import { AVAILABLE_FONTS } from './types'
 
 export function FieldSettingsPanel() {
-  const { activeFieldId, setActiveFieldId, fields, updateField, addOption, updateOption, removeOption } = useBuilder()
+  const { 
+    activeFieldId, setActiveFieldId, fields, updateField, addOption, updateOption, removeOption,
+    form, updateFormDetails, customStyles, updateStyles
+  } = useBuilder()
   const { currentTheme } = useTheme()
 
   const activeField = fields.find(f => f.id === activeFieldId)
@@ -41,7 +45,7 @@ export function FieldSettingsPanel() {
 
   return (
     <AnimatePresence>
-      {activeField && (
+      {(activeField || activeFieldId === 'header') && (
         <motion.aside
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -52,7 +56,7 @@ export function FieldSettingsPanel() {
           <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: currentTheme.border }}>
             <div className="flex items-center gap-2 font-bold" style={{ color: currentTheme.primary }}>
               <Settings className="w-4 h-4" />
-              <span className="text-sm">Field Settings</span>
+              <span className="text-sm">{activeFieldId === 'header' ? 'Header Settings' : 'Field Settings'}</span>
             </div>
             <button
               onClick={() => setActiveFieldId(null)}
@@ -63,6 +67,98 @@ export function FieldSettingsPanel() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-6">
+            {activeFieldId === 'header' ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: currentTheme.textMuted }}>
+                    Form Title
+                  </label>
+                  <input
+                    type="text"
+                    value={form?.title || ''}
+                    onChange={(e) => updateFormDetails({ title: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-medium focus:ring-2 outline-none transition-all"
+                    style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
+                    placeholder="E.g. Employee Pulse Survey"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: currentTheme.textMuted }}>
+                    Form Description
+                  </label>
+                  <textarea
+                    value={form?.description || ''}
+                    onChange={(e) => updateFormDetails({ description: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-medium focus:ring-2 outline-none transition-all min-h-[100px] resize-y"
+                    style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border, color: currentTheme.text }}
+                    placeholder="Confidential survey to measure workplace happiness..."
+                  />
+                </div>
+
+                <div className="pt-6 border-t" style={{ borderColor: currentTheme.border }}>
+                  <h3 className="text-[11px] font-extrabold uppercase tracking-widest mb-3 px-1" style={{ color: currentTheme.textMuted }}>
+                    Header Styling
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 p-3 border rounded-xl" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase">Background</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={customStyles.headerBg || '#ffffff'} 
+                          onChange={(e) => updateStyles({ headerBg: e.target.value })}
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                        />
+                        <span className="text-[10px] font-mono uppercase text-gray-400">
+                          {customStyles.headerBg || 'Default'}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase">Text Color</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={customStyles.headerText || '#000000'} 
+                          onChange={(e) => updateStyles({ headerText: e.target.value })}
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                        />
+                        <span className="text-[10px] font-mono uppercase text-gray-400">
+                          {customStyles.headerText || 'Default'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Font Family</label>
+                    <div className="grid grid-cols-1 gap-1">
+                      {AVAILABLE_FONTS.map(font => (
+                        <button
+                          key={font}
+                          onClick={() => updateStyles({ fontFamily: font })}
+                          className={cn(
+                            "w-full text-left px-3 py-2 rounded-lg text-sm border transition-all",
+                            customStyles.fontFamily === font 
+                              ? "bg-white border-indigo-200 text-indigo-700 shadow-sm shadow-indigo-500/10 font-bold" 
+                              : "bg-transparent border-transparent text-gray-600 hover:bg-white hover:border-gray-200"
+                          )}
+                          style={{ fontFamily: font }}
+                        >
+                          {font}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: currentTheme.textMuted }}>
@@ -309,6 +405,8 @@ export function FieldSettingsPanel() {
                   </button>
                 </div>
               </div>
+            )}
+              </>
             )}
           </div>
         </motion.aside>
