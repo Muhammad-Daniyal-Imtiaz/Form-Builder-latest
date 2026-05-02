@@ -496,7 +496,7 @@ export function Canvas() {
       {/* --- BRANDING SIDE (SPLIT/SIDEBAR) --- */}
       {(isSplit || isSidebar) && (
         <div 
-          onClick={() => setActiveFieldId('header')}
+          onClick={(e) => { e.stopPropagation(); setActiveFieldId('header'); }}
           className={cn(
           "p-12 relative flex flex-col justify-center cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500/50",
           isSplit ? "lg:w-1/2 min-h-[300px] lg:min-h-full" : "lg:w-[320px] lg:shrink-0 lg:min-h-full border-r",
@@ -556,7 +556,7 @@ export function Canvas() {
                   </div>
                 )}
                 <div 
-                  onClick={() => setActiveFieldId('header')}
+                  onClick={(e) => { e.stopPropagation(); setActiveFieldId('header'); }}
                   className="mb-12 border-b border-gray-100 pb-10 px-10 pt-10 cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500/50" 
                   style={{ textAlign: customStyles.headerAlignment }}
                 >
