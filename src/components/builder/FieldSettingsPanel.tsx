@@ -170,6 +170,63 @@ export function FieldSettingsPanel() {
               </div>
             )}
 
+            {/* Field Styling */}
+            <div className="pt-6 border-t" style={{ borderColor: currentTheme.border }}>
+              <h3 className="text-[11px] font-extrabold uppercase tracking-widest mb-3 px-1" style={{ color: currentTheme.textMuted }}>
+                Field Styling
+              </h3>
+              <div className="grid grid-cols-2 gap-3 p-3 border rounded-xl" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase">Background</label>
+                    {activeField.fieldBg && (
+                      <button 
+                        onClick={() => updateField(activeField.id, { fieldBg: undefined })}
+                        className="text-[9px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={activeField.fieldBg || '#ffffff'} 
+                      onChange={(e) => updateField(activeField.id, { fieldBg: e.target.value })}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                    />
+                    <span className="text-[10px] font-mono uppercase text-gray-400">
+                      {activeField.fieldBg || 'Default'}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase">Text Color</label>
+                    {activeField.fieldTextColor && (
+                      <button 
+                        onClick={() => updateField(activeField.id, { fieldTextColor: undefined })}
+                        className="text-[9px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={activeField.fieldTextColor || '#000000'} 
+                      onChange={(e) => updateField(activeField.id, { fieldTextColor: e.target.value })}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 overflow-hidden"
+                    />
+                    <span className="text-[10px] font-mono uppercase text-gray-400">
+                      {activeField.fieldTextColor || 'Default'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Logic & Branching Manager */}
             {['text', 'email', 'number', 'select', 'radio', 'checkbox'].includes(activeField.type) && (
               <div className="pt-6 border-t" style={{ borderColor: currentTheme.border }}>
