@@ -19,6 +19,8 @@ export interface FormField {
   fileMode?: 'upload' | 'link';
   logicRules?: FieldLogicRule[];
   pageIndex: number;
+  fieldBg?: string;        // per-field background color override
+  fieldTextColor?: string; // per-field text/label color override
 }
 
 export interface CustomStyles {

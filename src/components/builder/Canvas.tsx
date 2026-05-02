@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -20,12 +20,188 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { GripVertical, Trash2, Copy, Plus } from 'lucide-react'
+import { GripVertical, Trash2, Copy, Plus, Palette, RotateCcw } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FormField } from './types'
 import { cn } from '@/utils/cn'
 import { useTheme } from '@/components/ThemeProvider'
 
+// ─── Color preset swatches ────────────────────────────────────────────────────
+const BG_PRESETS = [
+  { label: 'White',        value: '#ffffff' },
+  { label: 'Light Gray',   value: '#f8fafc' },
+  { label: 'Warm Gray',    value: '#fafafa' },
+  { label: 'Light Blue',   value: '#eff6ff' },
+  { label: 'Light Indigo', value: '#eef2ff' },
+  { label: 'Light Purple', value: '#faf5ff' },
+  { label: 'Light Pink',   value: '#fdf2f8' },
+  { label: 'Light Green',  value: '#f0fdf4' },
+  { label: 'Light Yellow', value: '#fefce8' },
+  { label: 'Light Orange', value: '#fff7ed' },
+  { label: 'Light Red',    value: '#fff1f2' },
+  { label: 'Light Teal',   value: '#f0fdfa' },
+  { label: 'Slate',        value: '#f1f5f9' },
+  { label: 'Dark',         value: '#1e293b' },
+  { label: 'Black',        value: '#000000' },
+]
+
+const TEXT_PRESETS = [
+  { label: 'Dark',     value: '#111827' },
+  { label: 'Gray',     value: '#6b7280' },
+  { label: 'Slate',    value: '#334155' },
+  { label: 'Indigo',   value: '#4f46e5' },
+  { label: 'Purple',   value: '#7c3aed' },
+  { label: 'Blue',     value: '#2563eb' },
+  { label: 'Green',    value: '#059669' },
+  { label: 'Red',      value: '#dc2626' },
+  { label: 'Orange',   value: '#ea580c' },
+  { label: 'White',    value: '#ffffff' },
+]
+
+// ─── Context Menu ─────────────────────────────────────────────────────────────
+interface ContextMenuProps {
+  x: number
+  y: number
+  field: FormField
+  onClose: () => void
+  onChangeBg: (color: string) => void
+  onChangeText: (color: string) => void
+  onReset: () => void
+}
+
+function FieldContextMenu({ x, y, field, onClose, onChangeBg, onChangeText, onReset }: ContextMenuProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<'bg' | 'text'>('bg')
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    const handleDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', handleDown)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleDown)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [onClose])
+
+  // Clamp position so menu doesn't go off-screen
+  const [pos, setPos] = useState({ x, y })
+  useEffect(() => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const vw = window.innerWidth, vh = window.innerHeight
+    setPos({
+      x: x + rect.width > vw ? x - rect.width : x,
+      y: y + rect.height > vh ? y - rect.height : y,
+    })
+  }, [x, y])
+
+  const presets = tab === 'bg' ? BG_PRESETS : TEXT_PRESETS
+  const currentColor = tab === 'bg' ? (field.fieldBg || '#ffffff') : (field.fieldTextColor || '#111827')
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.92, y: -6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.92, y: -6 }}
+      transition={{ duration: 0.12 }}
+      style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999 }}
+      className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-64 overflow-hidden"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Header */}
+      <div className="px-4 pt-3 pb-2 border-b border-gray-100">
+        <div className="flex items-center gap-2 mb-2">
+          <Palette className="w-4 h-4 text-indigo-500" />
+          <span className="text-xs font-black text-gray-800 uppercase tracking-wider">Change Color</span>
+        </div>
+        {/* Tabs */}
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+          <button
+            onClick={() => setTab('bg')}
+            className={cn(
+              "flex-1 text-[10px] font-black py-1 rounded-md transition-all",
+              tab === 'bg' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500"
+            )}
+          >Background</button>
+          <button
+            onClick={() => setTab('text')}
+            className={cn(
+              "flex-1 text-[10px] font-black py-1 rounded-md transition-all",
+              tab === 'text' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500"
+            )}
+          >Text Color</button>
+        </div>
+      </div>
+
+      {/* Swatches */}
+      <div className="px-4 py-3">
+        <div className="grid grid-cols-5 gap-1.5 mb-3">
+          {presets.map((p) => (
+            <button
+              key={p.value}
+              title={p.label}
+              onClick={() => { tab === 'bg' ? onChangeBg(p.value) : onChangeText(p.value) }}
+              className="group relative w-full aspect-square rounded-lg border-2 transition-all hover:scale-110 hover:shadow-md"
+              style={{
+                backgroundColor: p.value,
+                borderColor: currentColor === p.value ? '#6366f1' : '#e5e7eb',
+              }}
+            >
+              {currentColor === p.value && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke={p.value === '#ffffff' || p.value === '#fefce8' || p.value === '#fff7ed' || p.value === '#fafafa' || p.value === '#f8fafc' ? '#4f46e5' : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom color picker */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-gray-200 shrink-0 cursor-pointer shadow-sm">
+            <input
+              type="color"
+              value={currentColor}
+              onChange={(e) => tab === 'bg' ? onChangeBg(e.target.value) : onChangeText(e.target.value)}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <div className="w-full h-full" style={{ backgroundColor: currentColor }} />
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-white/80 rounded-tl flex items-center justify-center">
+              <svg className="w-2 h-2 text-gray-600" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M11.207 2.5a1 1 0 00-1.414 0l-7 7A1 1 0 002.5 10v3.5h3.5a1 1 0 00.707-.293l7-7a1 1 0 000-1.414l-2-2z"/>
+              </svg>
+            </div>
+          </div>
+          <input
+            type="text"
+            value={currentColor}
+            onChange={(e) => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) tab === 'bg' ? onChangeBg(e.target.value) : onChangeText(e.target.value) }}
+            className="flex-1 text-xs font-mono px-2 py-1.5 border border-gray-200 rounded-lg outline-none focus:border-indigo-400 bg-gray-50"
+            placeholder="#ffffff"
+          />
+        </div>
+
+        {/* Reset */}
+        <button
+          onClick={onReset}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 hover:text-red-500 hover:border-red-200 transition-all"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset to Default
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── SortableFieldItem ────────────────────────────────────────────────────────
 function SortableFieldItem({ field }: { field: FormField }) {
   const {
     attributes,
@@ -36,133 +212,199 @@ function SortableFieldItem({ field }: { field: FormField }) {
     isDragging
   } = useSortable({ id: field.id })
 
-  const { activeFieldId, setActiveFieldId, removeField, duplicateField, customStyles } = useBuilder()
+  const { activeFieldId, setActiveFieldId, removeField, duplicateField, customStyles, updateField } = useBuilder()
   const { currentTheme } = useTheme()
   const isSelected = activeFieldId === field.id
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : 1,
+    zIndex: isDragging ? 50 : contextMenu ? 40 : 1,
   }
+
+  const fieldBg = field.fieldBg || 'transparent'
+  const fieldTextColor = field.fieldTextColor || undefined
 
   // Helper to render internal inputs for display only
   const inputStyle: React.CSSProperties = {
     border: `1.5px solid ${customStyles.inputBorderColor}`,
     background: customStyles.inputBg,
-    color: customStyles.bodyText,
+    color: fieldTextColor || customStyles.bodyText,
   }
   const inputCls = "w-full px-4 py-3 rounded-xl outline-none transition-all pointer-events-none"
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setActiveFieldId(field.id)
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }, [field.id, setActiveFieldId])
+
+  const closeMenu = useCallback(() => setContextMenu(null), [])
+
   return (
-    <div
-      ref={setNodeRef}
-      style={{ ...style, borderColor: isSelected ? currentTheme.primary : 'transparent' }}
-      className={cn(
-        "relative rounded-2xl border-2 transition-all group bg-transparent",
-        isSelected ? "shadow-lg" : "border-transparent",
-        isDragging && "opacity-50 scale-105 shadow-2xl"
-      )}
-      onClick={(e) => {
-        e.stopPropagation()
-        setActiveFieldId(field.id)
-      }}
-    >
-      <div className="p-6">
-        {/* DRAG HANDLE */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute -left-12 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-indigo-500 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <GripVertical className="w-5 h-5" />
-        </div>
+    <>
+      <div
+        ref={setNodeRef}
+        style={{
+          ...style,
+          borderColor: isSelected ? currentTheme.primary : 'transparent',
+          backgroundColor: fieldBg,
+        }}
+        className={cn(
+          "relative rounded-2xl border-2 transition-all group",
+          isSelected ? "shadow-lg" : "border-transparent",
+          isDragging && "opacity-50 scale-105 shadow-2xl"
+        )}
+        onClick={(e) => {
+          e.stopPropagation()
+          setActiveFieldId(field.id)
+        }}
+        onContextMenu={handleContextMenu}
+      >
+        <div className="p-6">
+          {/* DRAG HANDLE */}
+          <div
+            {...attributes}
+            {...listeners}
+            className="absolute -left-12 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-indigo-500 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <GripVertical className="w-5 h-5" />
+          </div>
 
-        {/* TOP ACTIONS */}
-        <AnimatePresence>
-          {isSelected && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.9 }}
-              className="absolute -top-12 right-0 rounded-xl shadow-xl border p-1 flex items-center gap-1 z-20"
-              style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}
-            >
-              <button
-                onClick={(e) => { e.stopPropagation(); duplicateField(field.id) }}
-                className="p-2 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors tooltip-trigger"
-                title="Duplicate"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              <div className="w-px h-4 bg-gray-200" />
-              <button
-                onClick={(e) => { e.stopPropagation(); removeField(field.id) }}
-                className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors tooltip-trigger"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </motion.div>
+          {/* Color indicator dot – shows when field has custom color */}
+          {field.fieldBg && (
+            <div
+              className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full border-2 border-white shadow"
+              style={{ backgroundColor: field.fieldBg }}
+              title="Custom background color"
+            />
           )}
-        </AnimatePresence>
 
-        {/* LABEL */}
-        <div className="mb-3 flex items-center gap-2">
-          <label className="text-sm font-bold text-gray-800" style={{ color: customStyles.labelColor }}>
-            {field.label}
-          </label>
-          {field.required && <span className="text-red-500 font-bold">*</span>}
-        </div>
+          {/* TOP ACTIONS */}
+          <AnimatePresence>
+            {isSelected && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                className="absolute -top-12 right-0 rounded-xl shadow-xl border p-1 flex items-center gap-1 z-20"
+                style={{ backgroundColor: currentTheme.card, borderColor: currentTheme.border }}
+              >
+                {/* Color picker shortcut */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY }) }}
+                  className="p-2 text-gray-400 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors"
+                  title="Change Color"
+                >
+                  <Palette className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-gray-200" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); duplicateField(field.id) }}
+                  className="p-2 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors tooltip-trigger"
+                  title="Duplicate"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-gray-200" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeField(field.id) }}
+                  className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors tooltip-trigger"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* FAKE INPUTS for Visuals */}
-        <div className="relative">
-          {field.type === 'text' && <input type="text" placeholder={field.placeholder || "Short answer text"} className={inputCls} style={inputStyle} readOnly />}
-          {field.type === 'email' && <input type="email" placeholder={field.placeholder || "Email address"} className={inputCls} style={inputStyle} readOnly />}
-          {field.type === 'number' && <input type="number" placeholder={field.placeholder || "Number"} className={inputCls} style={inputStyle} readOnly />}
-          {field.type === 'textarea' && <textarea rows={3} placeholder={field.placeholder || "Long answer text"} className={cn(inputCls, "resize-none")} style={inputStyle} readOnly />}
-          
-          {['select', 'radio', 'checkbox', 'multiselect'].includes(field.type) && (
-            <div className="space-y-3">
-              {field.type === 'checkbox' && (!field.options || field.options.length === 0) ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded border-2 border-gray-200 bg-white" />
-                  <span className="text-sm text-gray-600">Option 1</span>
-                </div>
-              ) : (
-                field.options?.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    {['radio', 'select'].includes(field.type) ? (
-                      <div className="w-5 h-5 rounded-full border-2 border-gray-200 bg-white" />
-                    ) : (
-                      <div className="w-5 h-5 rounded border-2 border-gray-200 bg-white" />
-                    )}
-                    <span className="text-sm text-gray-600">{opt}</span>
+          {/* LABEL */}
+          <div className="mb-3 flex items-center gap-2">
+            <label className="text-sm font-bold" style={{ color: fieldTextColor || customStyles.labelColor }}>
+              {field.label}
+            </label>
+            {field.required && <span className="text-red-500 font-bold">*</span>}
+          </div>
+
+          {/* FAKE INPUTS for Visuals */}
+          <div className="relative">
+            {field.type === 'text' && <input type="text" placeholder={field.placeholder || "Short answer text"} className={inputCls} style={inputStyle} readOnly />}
+            {field.type === 'email' && <input type="email" placeholder={field.placeholder || "Email address"} className={inputCls} style={inputStyle} readOnly />}
+            {field.type === 'number' && <input type="number" placeholder={field.placeholder || "Number"} className={inputCls} style={inputStyle} readOnly />}
+            {field.type === 'textarea' && <textarea rows={3} placeholder={field.placeholder || "Long answer text"} className={cn(inputCls, "resize-none")} style={inputStyle} readOnly />}
+            
+            {['select', 'radio', 'checkbox', 'multiselect'].includes(field.type) && (
+              <div className="space-y-3">
+                {field.type === 'checkbox' && (!field.options || field.options.length === 0) ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded border-2 border-gray-200 bg-white" />
+                    <span className="text-sm text-gray-600">Option 1</span>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                ) : (
+                  field.options?.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      {['radio', 'select'].includes(field.type) ? (
+                        <div className="w-5 h-5 rounded-full border-2 border-gray-200 bg-white" />
+                      ) : (
+                        <div className="w-5 h-5 rounded border-2 border-gray-200 bg-white" />
+                      )}
+                      <span className="text-sm text-gray-600">{opt}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
 
-          {field.type === 'rating' && (
-            <div className="flex gap-1.5">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <div key={s} className="p-1 text-gray-300">
-                   <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                </div>
-              ))}
-            </div>
-          )}
+            {field.type === 'rating' && (
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <div key={s} className="p-1 text-gray-300">
+                     <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {['file', 'multifile'].includes(field.type) && (
-            <div className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
-              <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6 L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-              <span className="text-xs font-bold uppercase tracking-widest">File Upload Area</span>
-            </div>
-          )}
+            {['file', 'multifile'].includes(field.type) && (
+              <div className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6 L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                <span className="text-xs font-bold uppercase tracking-widest">File Upload Area</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right-click hint on hover */}
+        <div className="absolute bottom-1.5 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Right-click to style</span>
         </div>
       </div>
-    </div>
+
+      {/* Context Menu Portal */}
+      <AnimatePresence>
+        {contextMenu && (
+          <FieldContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            field={field}
+            onClose={closeMenu}
+            onChangeBg={(color) => {
+              updateField(field.id, { fieldBg: color })
+            }}
+            onChangeText={(color) => {
+              updateField(field.id, { fieldTextColor: color })
+            }}
+            onReset={() => {
+              updateField(field.id, { fieldBg: undefined, fieldTextColor: undefined })
+              closeMenu()
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 

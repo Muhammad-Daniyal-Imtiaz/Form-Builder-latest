@@ -633,18 +633,33 @@ export default function PublicForm({
                   transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                   style={{ display: 'flex', flexDirection: 'column', gap: `${cs.fieldSpacing}px` }}
                 >
-            {currentPageFields.map((field: any, index: number) => {
-              const fieldKey = field.id || field.label
-              if (!isFieldVisible(fieldKey)) return null;
+                  {currentPageFields.map((field: any, index: number) => {
+                    const fieldKey = field.id || field.label
+                    if (!isFieldVisible(fieldKey)) return null;
 
-              return (
-                <div key={fieldKey} id={`field-${fieldKey}`} className="space-y-2 rounded-xl transition-all duration-300">
-                  <label style={labelStyle} dangerouslySetInnerHTML={{ __html: sanitize(field.label) + (field.required ? `<span style="color: ${cs.accentColor}" class="ml-1.5">*</span>` : '') }} />
+                    return (
+                      <div
+                        key={fieldKey}
+                        id={`field-${fieldKey}`}
+                        className="space-y-2 rounded-xl transition-all duration-300"
+                        style={field.fieldBg ? {
+                          backgroundColor: field.fieldBg,
+                          padding: '16px',
+                          borderRadius: '12px',
+                        } : undefined}
+                      >
+                        <label
+                          style={{
+                            ...labelStyle,
+                            color: field.fieldTextColor || cs.labelColor,
+                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitize(field.label) + (field.required ? `<span style="color: ${cs.accentColor}" class="ml-1.5">*</span>` : '') }}
+                        />
 
-                  {field.type === 'text' && (
-                    <input type="text" placeholder={field.placeholder || ''}
-                      onChange={e => handleInputChange(fieldKey, e.target.value)}
-                      style={getInternalInputStyle()}
+                        {field.type === 'text' && (
+                          <input type="text" placeholder={field.placeholder || ''}
+                            onChange={e => handleInputChange(fieldKey, e.target.value)}
+                            style={getInternalInputStyle()}
                       onFocus={e => { e.target.style.borderColor = cs.accentColor }}
                       onBlur={e => { e.target.style.borderColor = cs.inputBorderColor }}
                     />
