@@ -303,7 +303,7 @@ export function Canvas() {
           )}
         >
           <div className="max-w-4xl mx-auto w-full flex flex-col h-full" style={{ backgroundColor: customStyles.bodyBg }}>
-            {/* Classic Header (Only for Centered Layout) */}
+            {/* Classic Header (Only for Centered Layout) — matches PublicForm exactly */}
             {!isSplit && !isSidebar && (
               <>
                 {form?.cover_image_url && (
@@ -311,14 +311,14 @@ export function Canvas() {
                     <img src={form.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
                   </div>
                 )}
-                <div style={{ backgroundColor: customStyles.headerBg, color: customStyles.headerText, textAlign: customStyles.headerAlignment }} className="px-10 py-12">
+                <div className="mb-12 border-b border-gray-100 pb-10 px-10 pt-10" style={{ textAlign: customStyles.headerAlignment }}>
                   {form?.logo_url && (
-                    <div className="mb-6" style={{ textAlign: customStyles.logoAlignment }}>
-                      <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block' }} />
+                    <div className="mb-8" style={{ textAlign: customStyles.logoAlignment }}>
+                      <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
                     </div>
                   )}
-                  <h1 className="text-4xl font-black mb-4">{form?.title || 'Form Title'}</h1>
-                  <p className="text-lg opacity-80">{form?.description || 'Description...'}</p>
+                  <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: customStyles.bodyText }}>{form?.title || 'Form Title'}</h1>
+                  <p className="text-lg opacity-60 leading-relaxed font-medium" style={{ color: customStyles.bodyText }}>{form?.description || 'Description...'}</p>
                 </div>
               </>
             )}
