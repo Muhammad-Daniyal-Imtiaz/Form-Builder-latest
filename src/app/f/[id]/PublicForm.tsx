@@ -557,59 +557,6 @@ export default function PublicForm({
             />
           </div>
         )}
-
-        <div className={`w-full flex-1 flex flex-col ${isSplit || isSidebar ? 'bg-white lg:bg-transparent lg:shadow-none' : ''} transition-all duration-700`}
-          style={{ 
-            maxWidth: (isSplit || isSidebar) ? 'none' : `${cs.containerWidth}px`,
-          }}>
-          
-          <div className={`w-full max-w-4xl mx-auto p-8 lg:p-16 ${isSplit || isSidebar ? 'bg-white h-full overflow-y-auto custom-scrollbar' : 'rounded-[2rem] shadow-2xl overflow-hidden'}`}
-            style={{
-              backgroundColor: isSplit || isSidebar ? '#fff' : cs.bodyBg,
-              borderRadius: isSplit || isSidebar ? '0' : `${cs.borderRadius}px`,
-              boxShadow: isSplit || isSidebar ? 'none' : cs.boxShadow,
-              transform: `scale(${cs.formScale || 1})`,
-              transformOrigin: 'top center',
-            }}>
-            
-            {/* Header for Centered layout */}
-            {!isSplit && !isSidebar && (
-              <div className="mb-12 border-b border-gray-100 pb-10" style={{ textAlign: cs.headerAlignment }}>
-                {form.logo_url && (
-                  <div className="mb-8" style={{ 
-                    textAlign: cs.logoAlignment || 'left',
-                  }}>
-                    <img 
-                      src={form.logo_url} 
-                      alt="Logo" 
-                      style={{ 
-                        height: `${cs.logoHeight || 48}px`,
-                        borderRadius: `${cs.logoBorderRadius || 0}px`,
-                        display: 'inline-block',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                      }} 
-                    />
-                  </div>
-                )}
-                <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: cs.bodyText }} dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
-                <p className="text-lg opacity-60 leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
-              </div>
-            )}
-
-            {error && (
-              <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-[0.9em] animate-in slide-in-from-top duration-300">
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-sm font-bold text-red-800">Please correct the following</h3>
-                    <p className="text-sm text-red-700 mt-1">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Progress Bar */}
             {maxPage > 0 && (
               <div className="w-full h-1.5 bg-gray-100 rounded-full mb-10 overflow-hidden">

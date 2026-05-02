@@ -557,8 +557,13 @@ export function Canvas() {
                 )}
                 <div 
                   onClick={(e) => { e.stopPropagation(); setActiveFieldId('header'); }}
-                  className="mb-12 border-b border-gray-100 pb-10 px-10 pt-10 cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500/50" 
-                  style={{ textAlign: customStyles.headerAlignment }}
+                  className="mb-12 pb-10 px-10 pt-10 cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500/50" 
+                  style={{ 
+                    textAlign: customStyles.headerAlignment,
+                    backgroundColor: customStyles.headerBg,
+                    color: customStyles.headerText,
+                    borderBottom: `1px solid ${customStyles.headerText}20` 
+                  }}
                 >
                   <div className="pointer-events-none">
                     {form?.logo_url && (
@@ -566,8 +571,8 @@ export function Canvas() {
                         <img src={form.logo_url} alt="Logo" style={{ height: customStyles.logoHeight, borderRadius: customStyles.logoBorderRadius, display: 'inline-block', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
                       </div>
                     )}
-                    <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: customStyles.bodyText, fontFamily: customStyles.fontFamily }}>{form?.title || 'Form Title'}</h1>
-                    <p className="text-lg opacity-60 leading-relaxed font-medium" style={{ color: customStyles.bodyText, fontFamily: customStyles.fontFamily }}>{form?.description || 'Description...'}</p>
+                    <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: customStyles.headerText, fontFamily: customStyles.fontFamily }}>{form?.title || 'Form Title'}</h1>
+                    <p className="text-lg opacity-80 leading-relaxed font-medium" style={{ color: customStyles.headerText, fontFamily: customStyles.fontFamily }}>{form?.description || 'Description...'}</p>
                   </div>
                 </div>
               </>
