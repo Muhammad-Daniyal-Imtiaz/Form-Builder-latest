@@ -1,14 +1,16 @@
 'use client'
 
-import React from 'react'
-import { motion } from 'framer-motion'
-import { ArrowRight, Zap, Shield, Star, Sparkles, Layout } from 'lucide-react'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowRight, Zap, Shield, Star, Sparkles, Layout, Palette } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/utils/cn'
 import { useTheme } from '@/components/ThemeProvider'
+import { themes as formThemes, type ThemeTokens } from '@/lib/themeEngine'
 
 export default function Home() {
   const { currentTheme } = useTheme()
+  const [activeFormTheme, setActiveFormTheme] = useState<string>('carbon-steel')
 
   React.useEffect(() => {
     // Catch-all for redirected auth codes that land on the home page
@@ -140,6 +142,109 @@ export default function Home() {
              color={currentTheme.primary} 
            />
         </div>
+      </div>
+
+      {/* ═══ THEME SHOWCASE ═══ */}
+      <div className="relative z-10 py-32 px-6 max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border text-[10px] font-black uppercase tracking-widest mb-6"
+            style={{ color: currentTheme.primary, borderColor: currentTheme.border }}>
+            <Palette className="w-3 h-3" /> Premium Themes
+          </div>
+          <h2 className="text-5xl md:text-7xl font-black tracking-tighter mb-4" style={{ color: currentTheme.text }}>
+            7 stunning themes.
+          </h2>
+          <p className="text-lg max-w-xl mx-auto font-medium" style={{ color: currentTheme.textMuted }}>
+            Click any theme to see it in action on a live form preview.
+          </p>
+        </div>
+
+        {/* Theme Selector Pills */}
+        <div className="flex flex-wrap justify-center gap-3 mb-16">
+          {Object.entries(formThemes).map(([id, t]) => (
+            <button key={id} onClick={() => setActiveFormTheme(id)}
+              className={cn("px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border",
+                activeFormTheme === id ? "scale-105 shadow-lg" : "opacity-60 hover:opacity-100"
+              )}
+              style={{
+                backgroundColor: activeFormTheme === id ? t.primary : 'transparent',
+                color: activeFormTheme === id ? t.textOnPrimary : currentTheme.text,
+                borderColor: activeFormTheme === id ? t.primary : currentTheme.border,
+              }}>
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full" style={{ background: `linear-gradient(135deg, ${t.primary}, ${t.accent})` }} />
+                {t.name}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Live Form Preview */}
+        <AnimatePresence mode="wait">
+          <motion.div key={activeFormTheme}
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.35, ease: [0.23,1,0.32,1] }}
+            className="max-w-lg mx-auto rounded-3xl overflow-hidden shadow-2xl"
+            style={{ backgroundColor: formThemes[activeFormTheme].cardBg, border: `1px solid ${formThemes[activeFormTheme].borderLight}` }}>
+            
+            {/* Mini Form Header */}
+            <div className="p-8 pb-6" style={{ backgroundColor: formThemes[activeFormTheme].headerBg, color: formThemes[activeFormTheme].headerText }}>
+              <h3 className="text-xl font-black mb-1" style={{ fontFamily: formThemes[activeFormTheme].fontFamily }}>Contact Us</h3>
+              <p className="text-sm opacity-70">We&apos;d love to hear from you</p>
+            </div>
+
+            {/* Mini Form Body */}
+            <div className="p-8 space-y-5" style={{ backgroundColor: formThemes[activeFormTheme].cardBg }}>
+              {/* Name Field */}
+              <div>
+                <label className="block text-xs font-bold mb-1.5 uppercase tracking-wider" style={{ color: formThemes[activeFormTheme].labelColor }}>Full Name</label>
+                <div className="w-full px-4 py-3 text-sm" style={{
+                  backgroundColor: formThemes[activeFormTheme].inputBg,
+                  border: `1.5px solid ${formThemes[activeFormTheme].inputBorder}`,
+                  borderRadius: formThemes[activeFormTheme].radius,
+                  color: formThemes[activeFormTheme].textMuted,
+                  fontFamily: formThemes[activeFormTheme].fontFamily,
+                }}>Jane Doe</div>
+              </div>
+              {/* Email Field */}
+              <div>
+                <label className="block text-xs font-bold mb-1.5 uppercase tracking-wider" style={{ color: formThemes[activeFormTheme].labelColor }}>Email</label>
+                <div className="w-full px-4 py-3 text-sm" style={{
+                  backgroundColor: formThemes[activeFormTheme].inputBg,
+                  border: `1.5px solid ${formThemes[activeFormTheme].inputBorder}`,
+                  borderRadius: formThemes[activeFormTheme].radius,
+                  color: formThemes[activeFormTheme].textMuted,
+                  fontFamily: formThemes[activeFormTheme].fontFamily,
+                }}>jane@company.com</div>
+              </div>
+              {/* Message */}
+              <div>
+                <label className="block text-xs font-bold mb-1.5 uppercase tracking-wider" style={{ color: formThemes[activeFormTheme].labelColor }}>Message</label>
+                <div className="w-full px-4 py-3 text-sm min-h-[80px]" style={{
+                  backgroundColor: formThemes[activeFormTheme].inputBg,
+                  border: `1.5px solid ${formThemes[activeFormTheme].inputBorder}`,
+                  borderRadius: formThemes[activeFormTheme].radius,
+                  color: formThemes[activeFormTheme].textMuted,
+                  fontFamily: formThemes[activeFormTheme].fontFamily,
+                }}>I&apos;d like to learn more...</div>
+              </div>
+              {/* Submit Button */}
+              <button className="w-full py-3.5 text-sm font-black rounded-xl transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: formThemes[activeFormTheme].btnPrimaryBg,
+                  color: formThemes[activeFormTheme].btnPrimaryText,
+                  borderRadius: formThemes[activeFormTheme].radius,
+                  boxShadow: formThemes[activeFormTheme].shadowMd,
+                  fontFamily: formThemes[activeFormTheme].fontFamily,
+                }}>
+                Send Message
+              </button>
+              <p className="text-center text-[10px] font-medium" style={{ color: formThemes[activeFormTheme].helperText }}>
+                Your data is encrypted and secure.
+              </p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Footer */}
