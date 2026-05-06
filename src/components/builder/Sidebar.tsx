@@ -377,7 +377,7 @@ export function Sidebar() {
                 <h3 className="text-[11px] font-extrabold uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Premium Presets</h3>
                 <RefreshCcw 
                   className="w-3 h-3 text-gray-300 hover:text-indigo-500 cursor-pointer transition-colors" 
-                  onClick={() => applyThemePreset('minimal-light')}
+                  onClick={() => applyThemePreset('midnight-galaxy')}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">

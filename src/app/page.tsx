@@ -10,7 +10,7 @@ import { themes as formThemes, type ThemeTokens } from '@/lib/themeEngine'
 
 export default function Home() {
   const { currentTheme } = useTheme()
-  const [activeFormTheme, setActiveFormTheme] = useState<string>('carbon-steel')
+  const [activeFormTheme, setActiveFormTheme] = useState<string>('midnight-galaxy')
 
   React.useEffect(() => {
     // Catch-all for redirected auth codes that land on the home page
@@ -33,32 +33,29 @@ export default function Home() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div 
           className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] blur-[150px] rounded-full animate-pulse transition-colors duration-1000 opacity-[0.15]" 
-          style={{ backgroundColor: currentTheme.primary }}
+          style={{ backgroundColor: currentTheme.color1 }} 
         />
         <div 
           className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] blur-[150px] rounded-full animate-pulse transition-colors duration-1000 opacity-[0.15]" 
-          style={{ backgroundColor: currentTheme.secondary, animationDelay: '3s' }} 
+          style={{ backgroundColor: currentTheme.color2, animationDelay: '3s' }} 
         />
-        {!currentTheme.lightMode && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-        )}
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 w-full z-50 px-6 py-6 flex items-center justify-between backdrop-blur-md border-b" style={{ backgroundColor: `${currentTheme.bg}10`, borderColor: currentTheme.border }}>
+      <nav className="fixed top-0 left-0 w-full z-50 px-6 py-6 flex items-center justify-between backdrop-blur-md border-b" style={{ backgroundColor: `${currentTheme.pageBg}10`, borderColor: currentTheme.borderLight }}>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.primary}, ${currentTheme.secondary})` }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.color1}, ${currentTheme.color2})` }}>
             <Layout className="w-4 h-4 text-white" />
           </div>
-          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.text }}>FormFlow</span>
+          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>FormFlow</span>
         </div>
         <div className="flex items-center gap-8">
-           <Link href="/pricing" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textMuted }}>Pricing</Link>
-           <Link href="/login" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textMuted }}>Login</Link>
+           <Link href="/pricing" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textSecondary }}>Pricing</Link>
+           <Link href="/login" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textSecondary }}>Login</Link>
            <Link 
              href="/signup" 
              className="px-5 py-2.5 rounded-xl text-xs font-black hover:scale-105 active:scale-95 transition-all shadow-xl"
-             style={{ backgroundColor: currentTheme.primary, color: currentTheme.lightMode ? 'white' : 'black' }}
+             style={{ backgroundColor: currentTheme.primary, color: '#ffffff' }}
            >
              Get Started
            </Link>
@@ -71,7 +68,7 @@ export default function Home() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border text-[10px] font-black uppercase tracking-widest mb-8"
-          style={{ color: currentTheme.primary, borderColor: currentTheme.border }}
+          style={{ color: currentTheme.primary, borderColor: currentTheme.borderLight }}
         >
           <Sparkles className="w-3 h-3" />
           The Future of Form Building
@@ -81,10 +78,10 @@ export default function Home() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-7xl md:text-9xl font-black mb-10 leading-[0.9] tracking-tighter"
-          style={{ color: currentTheme.text }}
+          style={{ color: currentTheme.textPrimary }}
         >
           Build forms that <br />
-          <span className="bg-clip-text text-transparent bg-gradient-to-r transition-all duration-1000" style={{ backgroundImage: `linear-gradient(to right, ${currentTheme.primary}, ${currentTheme.secondary})` }}>convert.</span>
+          <span className="bg-clip-text text-transparent bg-gradient-to-r transition-all duration-1000" style={{ backgroundImage: `linear-gradient(to right, ${currentTheme.color1}, ${currentTheme.color2}, ${currentTheme.color3})` }}>convert.</span>
         </motion.h1>
 
         <motion.p 
@@ -92,10 +89,10 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="text-lg md:text-xl max-w-2xl mx-auto mb-12 font-medium leading-relaxed"
-          style={{ color: currentTheme.textMuted }}
+          style={{ color: currentTheme.textSecondary }}
         >
           Create stunning, high-performance forms in seconds. 
-          Zero bloat, bank-grade security, and 10+ premium themes included.
+          Zero bloat, bank-grade security, and 3 world-class themes included.
         </motion.p>
 
         <motion.div 
@@ -107,7 +104,7 @@ export default function Home() {
           <Link
             href="/signup"
             className="w-full sm:w-auto px-10 py-5 text-white font-black rounded-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-widest"
-            style={{ background: `linear-gradient(to right, ${currentTheme.primary}, ${currentTheme.secondary})`, boxShadow: `0 20px 40px ${currentTheme.primary}30` }}
+            style={{ background: `linear-gradient(to right, ${currentTheme.color1}, ${currentTheme.color2})`, boxShadow: `0 20px 40px ${currentTheme.primary}30` }}
           >
             Start Building Free
             <ArrowRight className="w-4 h-4" />
@@ -115,7 +112,7 @@ export default function Home() {
           <Link
             href="/pricing"
             className="w-full sm:w-auto px-10 py-5 bg-white/5 border hover:bg-white/10 font-black rounded-2xl transition-all text-sm uppercase tracking-widest"
-            style={{ color: currentTheme.text, borderColor: currentTheme.border }}
+            style={{ color: currentTheme.textPrimary, borderColor: currentTheme.borderLight }}
           >
             View Pricing
           </Link>
@@ -138,8 +135,8 @@ export default function Home() {
            <HeroFeature 
              icon={<Star />} 
              title="Premium Design" 
-             desc="10+ stunning themes that make your forms look like they cost thousands to build." 
-             color={currentTheme.primary} 
+             desc="3 stunning themes that make your forms look like they cost thousands to build." 
+             color={currentTheme.accent} 
            />
         </div>
       </div>
@@ -148,33 +145,38 @@ export default function Home() {
       <div className="relative z-10 py-32 px-6 max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border text-[10px] font-black uppercase tracking-widest mb-6"
-            style={{ color: currentTheme.primary, borderColor: currentTheme.border }}>
-            <Palette className="w-3 h-3" /> Premium Themes
+            style={{ color: currentTheme.primary, borderColor: currentTheme.borderLight }}>
+            <Palette className="w-3 h-3" /> World Class Themes
           </div>
-          <h2 className="text-5xl md:text-7xl font-black tracking-tighter mb-4" style={{ color: currentTheme.text }}>
-            7 stunning themes.
+          <h2 className="text-5xl md:text-7xl font-black tracking-tighter mb-4" style={{ color: currentTheme.textPrimary }}>
+            3 master palettes.
           </h2>
-          <p className="text-lg max-w-xl mx-auto font-medium" style={{ color: currentTheme.textMuted }}>
-            Click any theme to see it in action on a live form preview.
+          <p className="text-lg max-w-xl mx-auto font-medium" style={{ color: currentTheme.textSecondary }}>
+            Experience 5-color harmony designed for premium products.
           </p>
         </div>
 
         {/* Theme Selector Pills */}
-        <div className="flex flex-wrap justify-center gap-3 mb-16">
+        <div className="flex flex-wrap justify-center gap-6 mb-16">
           {Object.entries(formThemes).map(([id, t]) => (
             <button key={id} onClick={() => setActiveFormTheme(id)}
-              className={cn("px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border",
-                activeFormTheme === id ? "scale-105 shadow-lg" : "opacity-60 hover:opacity-100"
+              className={cn("p-1 rounded-2xl transition-all border-2",
+                activeFormTheme === id ? "scale-105 shadow-2xl" : "opacity-60 hover:opacity-100 hover:scale-105"
               )}
               style={{
-                backgroundColor: activeFormTheme === id ? t.primary : 'transparent',
-                color: activeFormTheme === id ? t.textOnPrimary : currentTheme.text,
-                borderColor: activeFormTheme === id ? t.primary : currentTheme.border,
+                borderColor: activeFormTheme === id ? t.color1 : 'transparent',
+                backgroundColor: activeFormTheme === id ? `${t.color1}10` : 'transparent'
               }}>
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ background: `linear-gradient(135deg, ${t.primary}, ${t.accent})` }} />
-                {t.name}
-              </span>
+              <div className="flex flex-col items-center gap-3 p-4">
+                <div className="flex -space-x-2">
+                  {[t.color1, t.color2, t.color3, t.color4, t.color5].map((c, i) => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <span className="text-xs font-black uppercase tracking-widest" style={{ color: activeFormTheme === id ? t.color1 : currentTheme.textPrimary }}>
+                  {t.name}
+                </span>
+              </div>
             </button>
           ))}
         </div>
@@ -234,7 +236,7 @@ export default function Home() {
                   backgroundColor: formThemes[activeFormTheme].btnPrimaryBg,
                   color: formThemes[activeFormTheme].btnPrimaryText,
                   borderRadius: formThemes[activeFormTheme].radius,
-                  boxShadow: formThemes[activeFormTheme].shadowMd,
+                  boxShadow: formThemes[activeFormTheme].shadowLg,
                   fontFamily: formThemes[activeFormTheme].fontFamily,
                 }}>
                 Send Message
