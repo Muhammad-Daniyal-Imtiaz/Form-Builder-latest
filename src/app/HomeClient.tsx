@@ -26,10 +26,39 @@ export default function HomeClient() {
       })
       window.location.assign(callbackUrl.toString())
     }
+
+    // ═══ Aggressive Zoom Lock ═══
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+      }
+    }
+
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+        e.preventDefault()
+      }
+    }
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault()
+      }
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('keydown', handleKeydown)
+    window.addEventListener('touchstart', handleTouchStart, { passive: false })
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeydown)
+      window.removeEventListener('touchstart', handleTouchStart)
+    }
   }, [])
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden transition-colors duration-500 lock-zoom-80">
+    <div className="min-h-screen relative overflow-x-hidden transition-colors duration-500 lock-zoom-90">
       {/* Premium Background Mesh */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div 

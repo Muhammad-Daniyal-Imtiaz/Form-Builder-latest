@@ -119,15 +119,15 @@ html {
 }
 
 /* Locked Zoom Utility */
-.lock-zoom-80 {
-  zoom: 80%;
+.lock-zoom-90 {
+  zoom: 90%;
 }
 
-@supports not (zoom: 80%) {
-  .lock-zoom-80 {
-    transform: scale(0.8);
+@supports not (zoom: 90%) {
+  .lock-zoom-90 {
+    transform: scale(0.9);
     transform-origin: top center;
-    width: 125%;
-    height: 125%;
+    width: 111.11%;
+    height: 111.11%;
   }
 }
