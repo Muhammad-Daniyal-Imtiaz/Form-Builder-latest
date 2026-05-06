@@ -10,7 +10,7 @@ interface BuilderContextType {
   fields: FormField[];
   customStyles: CustomStyles;
   formSettings: FormSettings;
-  
+
   // UI State
   loading: boolean;
   saving: boolean;
@@ -21,7 +21,7 @@ interface BuilderContextType {
   pageCount: number;
   builderViewMode: 'all' | 'single';
   builderActivePage: number;
-  
+
   // Actions
   setSidebarTab: (tab: 'add' | 'design' | 'settings' | 'share') => void;
   setActiveFieldId: (id: string | null) => void;
@@ -32,7 +32,7 @@ interface BuilderContextType {
   updateFormSettings: (updates: Partial<FormSettings>) => void;
   applyThemePreset: (presetId: string) => void;
   setFields: React.Dispatch<React.SetStateAction<FormField[]>>;
-  
+
   // Field Actions
   addField: (type: FieldType) => void;
   addPage: () => void;
@@ -40,12 +40,12 @@ interface BuilderContextType {
   updateField: (id: string, updates: Partial<FormField>) => void;
   removeField: (id: string) => void;
   duplicateField: (id: string) => void;
-  
+
   // Option Actions
   addOption: (fieldId: string) => void;
   updateOption: (fieldId: string, optionIndex: number, value: string) => void;
   removeOption: (fieldId: string, optionIndex: number) => void;
-  
+
   // Network
   save: () => Promise<void>;
 }
@@ -57,17 +57,17 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
   const [fields, setFields] = useState<FormField[]>([])
   const [customStyles, setCustomStyles] = useState<CustomStyles>({ ...DEFAULT_STYLES })
   const [formSettings, setFormSettings] = useState<FormSettings>({ ...DEFAULT_SETTINGS })
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
   const [sidebarTab, setSidebarTab] = useState<'add' | 'design' | 'settings' | 'share'>('add')
   const [builderViewMode, setBuilderViewMode] = useState<'all' | 'single'>('all')
   const [builderActivePage, setBuilderActivePage] = useState(0)
-  
+
   // We use this to debounce auto-saves if we want, but for now manual or on-blur save
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -88,7 +88,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
         try { settings = { ...DEFAULT_SETTINGS, ...JSON.parse(parts[1]) } } catch { }
         desc = parts[0] // remove settings string from desc block
       }
-      
+
       // Parse Styles
       if (desc.includes('|||STYLES:')) {
         const parts = desc.split('|||STYLES:')
@@ -99,7 +99,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
       setForm({ ...data, description: desc })
       setCustomStyles(styles)
       setFormSettings(settings)
-      
+
       // Ensure all fields have IDs
       const loadedFields = (data.form_fields || []).map((f: any) => ({
         ...f,
@@ -137,9 +137,9 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
       const formResponse = await fetch(`/api/forms/${formId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: form.title, 
-          description: descPayload, 
+        body: JSON.stringify({
+          title: form.title,
+          description: descPayload,
           published: form.published,
           logo_url: form.logo_url,
           cover_image_url: form.cover_image_url
@@ -172,7 +172,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
     if (loading || !form) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     timeoutRef.current = setTimeout(() => {
-       save()
+      save()
     }, 2000) // Auto-save after 2s of inactivity
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -182,9 +182,9 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
 
   const addField = useCallback((type: FieldType) => {
     const id = crypto.randomUUID()
-    setFields(prev => [...prev, { 
-      id, 
-      type, 
+    setFields(prev => [...prev, {
+      id,
+      type,
       label: `New ${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       required: false,
       options: ['select', 'multiselect', 'radio', 'checkbox'].includes(type) ? ['Option 1', 'Option 2', 'Option 3'] : null,
@@ -279,7 +279,7 @@ export function BuilderProvider({ children, formId }: { children: React.ReactNod
       formId, form, fields, customStyles, formSettings,
       loading, saving, saved, error, activeFieldId, sidebarTab, pageCount,
       builderViewMode, builderActivePage,
-      setSidebarTab, setActiveFieldId, 
+      setSidebarTab, setActiveFieldId,
       setBuilderViewMode, setBuilderActivePage,
       updateFormDetails: (u) => setForm((p: any) => ({ ...p, ...u })),
       updateStyles: (u) => setCustomStyles(p => ({ ...p, ...u })),
