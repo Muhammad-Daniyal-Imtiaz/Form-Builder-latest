@@ -9,6 +9,8 @@ import { Layout, Plus, Info, LayoutGrid, List } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/utils/cn'
 
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+
 export default function DashboardClient({ user, dbUser, forms, siteUrl }: any) {
   const { currentTheme } = useTheme()
 
@@ -27,7 +29,7 @@ export default function DashboardClient({ user, dbUser, forms, siteUrl }: any) {
       </div>
 
       {/* Top Navbar */}
-      <header className="sticky top-0 z-50 px-8 py-5 flex justify-between items-center backdrop-blur-xl border-b" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
+      <header className="sticky top-0 z-50 px-8 py-4 flex justify-between items-center backdrop-blur-xl border-b" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.primary}, ${currentTheme.secondary})` }}>
             <Layout className="w-5 h-5 text-white" />
@@ -35,6 +37,11 @@ export default function DashboardClient({ user, dbUser, forms, siteUrl }: any) {
           <span className="text-xl font-black tracking-tighter" style={{ color: currentTheme.text }}>
             FormFlow <span style={{ color: currentTheme.textMuted }} className="font-medium">Dashboard</span>
           </span>
+        </div>
+
+        {/* Global Theme Switcher In Header */}
+        <div className="hidden lg:block">
+          <ThemeSwitcher />
         </div>
         
         <div className="flex items-center gap-8">

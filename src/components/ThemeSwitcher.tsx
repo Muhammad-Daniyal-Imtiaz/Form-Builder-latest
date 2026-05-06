@@ -11,10 +11,10 @@ export function ThemeSwitcher() {
   return (
     <div 
       className={cn(
-        "fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] p-2 rounded-2xl backdrop-blur-2xl border flex gap-1.5 shadow-2xl overflow-x-auto max-w-[95vw] no-scrollbar transition-all duration-500",
+        "p-1.5 rounded-xl flex gap-1 transition-all duration-500",
         currentTheme.lightMode 
-          ? "bg-white/70 border-black/5 ring-1 ring-black/5" 
-          : "bg-black/40 border-white/10 ring-1 ring-white/5"
+          ? "bg-black/5" 
+          : "bg-white/5"
       )}
     >
       {themes.map((t) => (
@@ -22,10 +22,10 @@ export function ThemeSwitcher() {
           key={t.id}
           onClick={() => setTheme(t.id)}
           className={cn(
-            "flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[10px] font-black whitespace-nowrap transition-all duration-300 relative group",
+            "flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black transition-all duration-300 relative group",
             currentTheme.id === t.id 
-              ? (currentTheme.lightMode ? "bg-black text-white shadow-xl scale-105" : "bg-white text-black shadow-xl scale-105")
-              : (currentTheme.lightMode ? "text-gray-500 hover:bg-black/5" : "text-gray-400 hover:bg-white/5")
+              ? (currentTheme.lightMode ? "bg-white text-black shadow-sm" : "bg-white/10 text-white shadow-sm")
+              : (currentTheme.lightMode ? "text-gray-500 hover:text-black" : "text-gray-400 hover:text-white")
           )}
         >
           <span className={cn(
@@ -34,15 +34,7 @@ export function ThemeSwitcher() {
           )}>
             {t.icon}
           </span>
-          <span className="hidden sm:inline tracking-tight">{t.name}</span>
-          
-          {currentTheme.id === t.id && (
-            <motion.div 
-              layoutId="active-pill"
-              className="absolute inset-0 rounded-xl -z-10"
-              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-            />
-          )}
+          <span className="hidden md:inline tracking-tight">{t.name}</span>
         </button>
       ))}
     </div>

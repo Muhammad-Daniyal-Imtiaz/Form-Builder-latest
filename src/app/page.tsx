@@ -6,7 +6,15 @@ import { ArrowRight, Zap, Shield, Star, Sparkles, Layout, Palette } from 'lucide
 import Link from 'next/link'
 import { cn } from '@/utils/cn'
 import { useTheme } from '@/components/ThemeProvider'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { themes as formThemes, type ThemeTokens } from '@/lib/themeEngine'
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 0.8,
+  maximumScale: 0.8,
+  userScalable: false,
+}
 
 export default function Home() {
   const { currentTheme } = useTheme()
@@ -28,7 +36,7 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden transition-colors duration-500">
+    <div className="min-h-screen relative overflow-x-hidden transition-colors duration-500 lock-zoom-80">
       {/* Premium Background Mesh */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div 
@@ -42,13 +50,19 @@ export default function Home() {
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 w-full z-50 px-6 py-6 flex items-center justify-between backdrop-blur-md border-b" style={{ backgroundColor: `${currentTheme.pageBg}10`, borderColor: currentTheme.borderLight }}>
+      <nav className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex items-center justify-between backdrop-blur-md border-b" style={{ backgroundColor: `${currentTheme.pageBg}10`, borderColor: currentTheme.borderLight }}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.color1}, ${currentTheme.color2})` }}>
             <Layout className="w-4 h-4 text-white" />
           </div>
           <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>FormFlow</span>
         </div>
+
+        {/* Global Theme Switcher In Header */}
+        <div className="hidden lg:block">
+          <ThemeSwitcher />
+        </div>
+
         <div className="flex items-center gap-8">
            <Link href="/pricing" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textSecondary }}>Pricing</Link>
            <Link href="/login" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textSecondary }}>Login</Link>

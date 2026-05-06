@@ -11,6 +11,8 @@ import { useBuilder } from '@/components/builder/BuilderContext'
 import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/utils/cn'
 
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+
 function BuilderHeader() {
   const { form, saving, saved, save, loading, formId, updateFormDetails } = useBuilder()
   const { currentTheme } = useTheme()
@@ -39,6 +41,11 @@ function BuilderHeader() {
             {form?.title || 'Untitled Form'}
           </p>
         </div>
+      </div>
+
+      {/* Global Theme Switcher In Header */}
+      <div className="hidden lg:block">
+        <ThemeSwitcher />
       </div>
 
       <div className="flex items-center gap-3">

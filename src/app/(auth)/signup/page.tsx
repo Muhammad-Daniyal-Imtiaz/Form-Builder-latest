@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Layout, Mail, Lock, User, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import { useTheme } from '@/components/ThemeProvider'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 export default function SignupPage() {
   const { currentTheme } = useTheme()
@@ -61,7 +61,27 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 overflow-hidden relative transition-colors duration-500">
+    <div className="min-h-screen flex flex-col relative transition-colors duration-500">
+      {/* Header */}
+      <header className="fixed top-0 left-0 w-full z-50 px-8 py-5 flex justify-between items-center backdrop-blur-xl border-b" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
+        <Link href="/" className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.primary}, ${currentTheme.secondary})` }}>
+            <Layout className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>FormFlow</span>
+        </Link>
+        
+        <div className="hidden lg:block">
+          <ThemeSwitcher />
+        </div>
+
+        <div className="flex items-center gap-6">
+          <Link href="/pricing" className="text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors" style={{ color: currentTheme.textMuted }}>Pricing</Link>
+          <Link href="/login" className="text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all shadow-lg" style={{ backgroundColor: currentTheme.primary, color: currentTheme.lightMode ? 'white' : 'black' }}>Sign In</Link>
+        </div>
+      </header>
+
+      <div className="flex-1 flex items-center justify-center p-6 relative pt-24">
       {/* Background Mesh */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div 

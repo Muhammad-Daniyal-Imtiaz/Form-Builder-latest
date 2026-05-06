@@ -7,6 +7,9 @@ import Link from 'next/link'
 import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/utils/cn'
 
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { Layout } from 'lucide-react'
+
 export default function PricingPage() {
   const { currentTheme } = useTheme()
 
@@ -59,7 +62,34 @@ export default function PricingPage() {
   ]
 
   return (
-    <div className="min-h-screen py-24 px-6 overflow-x-hidden relative transition-colors duration-500">
+    <div className="min-h-screen flex flex-col relative transition-colors duration-500">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 w-full z-50 px-8 py-5 flex items-center justify-between backdrop-blur-xl border-b" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
+        <Link href="/" className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.primary}, ${currentTheme.secondary})` }}>
+            <Layout className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>FormFlow</span>
+        </Link>
+
+        {/* Global Theme Switcher In Header */}
+        <div className="hidden lg:block">
+          <ThemeSwitcher />
+        </div>
+
+        <div className="flex items-center gap-8">
+           <Link href="/login" className="text-xs font-bold transition-colors" style={{ color: currentTheme.textMuted }}>Login</Link>
+           <Link 
+             href="/signup" 
+             className="px-5 py-2.5 rounded-xl text-xs font-black hover:scale-105 active:scale-95 transition-all shadow-xl"
+             style={{ backgroundColor: currentTheme.primary, color: currentTheme.lightMode ? 'white' : 'black' }}
+           >
+             Get Started
+           </Link>
+        </div>
+      </nav>
+
+      <div className="flex-1 py-32 px-6 relative">
       {/* Dynamic Background Mesh */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div 
