@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Layout, Mail, Lock, User, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { useTheme } from '@/components/ThemeProvider'
 
 export default function SignupPage() {
   const { currentTheme } = useTheme()
@@ -254,6 +255,7 @@ export default function SignupPage() {
           </Link>
         </p>
       </motion.div>
+      </div>
     </div>
   )
 }

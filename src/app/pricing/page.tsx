@@ -200,6 +200,7 @@ export default function PricingPage() {
            <Feature icon={<Globe />} title="Global Infrastructure" desc="Edge-cached forms that load in milliseconds for users anywhere on Earth." />
            <Feature icon={<MessageSquare />} title="24/7 Support" desc="Our growth and pro users get priority access to our dedicated engineering team." />
         </div>
+        </div>
       </div>
     </div>
   )
