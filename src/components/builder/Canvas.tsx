@@ -441,6 +441,10 @@ export function Canvas() {
       })
     }
   }
+  
+  const isSplit = customStyles.layout === 'split'
+  const isSidebar = customStyles.layout === 'sidebar'
+  const side = customStyles.layoutSide || 'left'
 
   const containerStyle = {
     maxWidth: customStyles.containerWidth,
@@ -478,9 +482,6 @@ export function Canvas() {
     ? `https://fonts.googleapis.com/css2?family=${customStyles.fontFamily.replace(' ', '+')}:wght@400;700;800&display=swap`
     : null;
 
-  const isSplit = customStyles.layout === 'split'
-  const isSidebar = customStyles.layout === 'sidebar'
-  const side = customStyles.layoutSide || 'left'
 
   return (
     <div className={cn(
