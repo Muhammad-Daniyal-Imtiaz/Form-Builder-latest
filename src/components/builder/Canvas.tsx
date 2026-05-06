@@ -20,7 +20,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { GripVertical, Trash2, Copy, Plus, Palette, RotateCcw } from 'lucide-react'
+import { GripVertical, Trash2, Copy, Plus, Palette, RotateCcw, Monitor, Tablet, Smartphone } from 'lucide-react'
 import { useBuilder } from './BuilderContext'
 import { FormField } from './types'
 import { cn } from '@/utils/cn'
@@ -414,7 +414,8 @@ export function Canvas() {
     setActiveFieldId, formSettings, addPage, 
     removePage, pageCount,
     builderViewMode, setBuilderViewMode,
-    builderActivePage, setBuilderActivePage
+    builderActivePage, setBuilderActivePage,
+    builderDeviceView, setBuilderDeviceView
   } = useBuilder()
   const { currentTheme } = useTheme()
 
@@ -445,12 +446,16 @@ export function Canvas() {
     maxWidth: customStyles.containerWidth,
     margin: '0 auto',
     backgroundColor: customStyles.bodyBg,
-    borderRadius: customStyles.borderRadius,
-    boxShadow: customStyles.boxShadow,
+    borderRadius: (isSplit || isSidebar) ? '0' : customStyles.borderRadius,
+    boxShadow: (isSplit || isSidebar) ? 'none' : customStyles.boxShadow,
     minHeight: '400px',
     transform: `scale(${customStyles.formScale || 1})`,
     transformOrigin: 'top center',
     fontFamily: `"${customStyles.fontFamily}", sans-serif`,
+    // Device constraints
+    width: builderDeviceView === 'mobile' ? '375px' : builderDeviceView === 'tablet' ? '768px' : '100%',
+    maxWidth: builderDeviceView === 'mobile' ? '375px' : builderDeviceView === 'tablet' ? '768px' : (isSplit || isSidebar ? '100%' : customStyles.containerWidth),
+    transition: 'all 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
   }
 
   const bgStyle: React.CSSProperties = {
@@ -479,8 +484,8 @@ export function Canvas() {
 
   return (
     <div className={cn(
-      "flex-1 overflow-y-auto custom-scrollbar relative flex flex-col",
-      (isSplit || isSidebar) ? "lg:flex-row" : "items-center py-12 px-4"
+      "flex-1 overflow-y-auto custom-scrollbar relative flex flex-col items-center",
+      (isSplit || isSidebar) ? "lg:flex-row" : "py-12 px-4"
     )} onClick={() => setActiveFieldId(null)} style={bgStyle}>
       {fontUrl && <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />}
       <style>{`
@@ -534,13 +539,7 @@ export function Canvas() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            ...containerStyle,
-            maxWidth: (isSplit || isSidebar) ? '100%' : customStyles.containerWidth,
-            width: (isSplit || isSidebar) ? '100%' : 'auto',
-            borderRadius: (isSplit || isSidebar) ? '0' : customStyles.borderRadius,
-            boxShadow: (isSplit || isSidebar) ? 'none' : customStyles.boxShadow,
-          }} 
+          style={containerStyle} 
           className={cn(
             "relative transition-all duration-300",
             (isSplit || isSidebar) ? "h-full" : "shadow-2xl overflow-hidden"
@@ -582,32 +581,67 @@ export function Canvas() {
             <div 
               className="flex items-center justify-between px-8 py-3 border-b bg-white/80 backdrop-blur-xl sticky top-0 z-30 border-gray-100"
             >
-              <div className="flex p-1 rounded-xl shadow-sm border border-gray-100 bg-gray-50">
-                <button 
-                  onClick={() => setBuilderViewMode('all')} 
-                  className={cn(
-                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", 
-                    builderViewMode === 'all' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-                  )}
-                >
-                  All Pages
-                </button>
-                <button 
-                  onClick={() => setBuilderViewMode('single')} 
-                  className={cn(
-                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", 
-                    builderViewMode === 'single' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-                  )}
-                >
-                  Single Step
-                </button>
+              <div className="flex items-center gap-6">
+                <div className="flex p-1 rounded-xl shadow-sm border border-gray-100 bg-gray-50">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setBuilderViewMode('all'); }} 
+                    className={cn(
+                      "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", 
+                      builderViewMode === 'all' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                    )}
+                  >
+                    All Pages
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setBuilderViewMode('single'); }} 
+                    className={cn(
+                      "px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all", 
+                      builderViewMode === 'single' ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                    )}
+                  >
+                    Single Step
+                  </button>
+                </div>
+
+                <div className="flex p-1 rounded-xl shadow-sm border border-gray-100 bg-gray-50">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setBuilderDeviceView('desktop'); }} 
+                    className={cn(
+                      "p-2 rounded-lg transition-all", 
+                      builderDeviceView === 'desktop' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                    )}
+                    title="Desktop View"
+                  >
+                    <Monitor className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setBuilderDeviceView('tablet'); }} 
+                    className={cn(
+                      "p-2 rounded-lg transition-all", 
+                      builderDeviceView === 'tablet' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                    )}
+                    title="Tablet View"
+                  >
+                    <Tablet className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setBuilderDeviceView('mobile'); }} 
+                    className={cn(
+                      "p-2 rounded-lg transition-all", 
+                      builderDeviceView === 'mobile' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                    )}
+                    title="Mobile View"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {builderViewMode === 'single' && (
                 <div className="flex items-center gap-4">
-                  <button disabled={builderActivePage === 0} onClick={() => setBuilderActivePage(Math.max(0, builderActivePage - 1))} className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></button>
+                  <button disabled={builderActivePage === 0} onClick={(e) => { e.stopPropagation(); setBuilderActivePage(Math.max(0, builderActivePage - 1)); }} className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></button>
                   <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Step {builderActivePage + 1} / {pageCount}</div>
-                  <button disabled={builderActivePage === pageCount - 1} onClick={() => setBuilderActivePage(Math.min(pageCount - 1, builderActivePage + 1))} className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></button>
+                  <button disabled={builderActivePage === pageCount - 1} onClick={(e) => { e.stopPropagation(); setBuilderActivePage(Math.min(pageCount - 1, builderActivePage + 1)); }} className="p-1.5 text-gray-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg></button>
                 </div>
               )}
             </div>
