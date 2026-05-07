@@ -160,7 +160,7 @@ export default function PublicForm({
   const isPreview = searchParams.get('preview') === 'true'
   
   // Multi-Device State
-  const [selectedMobileIds, setSelectedMobileIds] = useState<string[]>(['iphone-14-pro'])
+  const [selectedMobileIds, setSelectedMobileIds] = useState<string[]>([])
   const [selectedTabletId, setSelectedTabletId] = useState<string | null>(null)
   const [showDesktop, setShowDesktop] = useState(true)
   const [dropdownOpen, setDropdownOpen] = useState<'mobile' | 'tablet' | null>(null)
@@ -255,7 +255,6 @@ export default function PublicForm({
         }
     }
   };
-  // ----------------------
 
   const fontUrl = cs.fontFamily !== 'Inter' && cs.fontFamily !== 'Georgia'
     ? `https://fonts.googleapis.com/css2?family=${cs.fontFamily.replace(' ', '+')}:wght@400;500;600;700;800&display=swap`
@@ -278,23 +277,10 @@ export default function PublicForm({
   const isFieldMissing = (field: any) => {
     const key = field.id || field.label
     const value = data[key]
-
-    if (field.type === 'checkbox' && !field.options?.length) {
-      return value !== true
-    }
-
-    if (value === undefined || value === null) {
-      return true
-    }
-
-    if (typeof value === 'string') {
-      return value.trim() === ''
-    }
-
-    if (Array.isArray(value)) {
-      return value.length === 0
-    }
-
+    if (field.type === 'checkbox' && !field.options?.length) return value !== true
+    if (value === undefined || value === null) return true
+    if (typeof value === 'string') return value.trim() === ''
+    if (Array.isArray(value)) return value.length === 0
     return false
   }
 
@@ -310,7 +296,7 @@ export default function PublicForm({
         formData.append('formId', form.id)
         const res = await fetch('/api/upload', { method: 'POST', body: formData })
         const payload = await res.json()
-        if (!res.ok) throw new Error(payload.error || 'File upload failed. Please try again.')
+        if (!res.ok) throw new Error(payload.error || 'File upload failed.')
         uploadedFiles.push(payload)
       }
       if (isMultiple) {
@@ -334,12 +320,10 @@ export default function PublicForm({
       const key = f.id || f.label
       return f.required && isFieldVisible(key) && isFieldMissing(f)
     })
-
     if (missingFields.length > 0) {
-      setError(`Please fill all required fields before proceeding: ${missingFields[0].label}`)
+      setError(`Required: ${missingFields[0].label}`)
       return
     }
-
     setError('')
     if (currentPage < maxPage) {
       setCurrentPage(prev => prev + 1)
@@ -356,29 +340,22 @@ export default function PublicForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     const missingFields = currentPageFields.filter((f: any) => {
       const key = f.id || f.label
       return f.required && isFieldVisible(key) && isFieldMissing(f)
     })
-
     if (missingFields.length > 0) {
-      setError(`Please fill all required fields: ${missingFields[0].label}`)
+      setError(`Required: ${missingFields[0].label}`)
       return
     }
-
     setLoading(true)
     setError('')
     try {
-      // Filter out hidden fields from submission
       const activeData: Record<string, any> = {}
       fields.forEach((f: any) => {
         const key = f.id || f.label
-        if (isFieldVisible(key) && data[key] !== undefined) {
-          activeData[key] = data[key]
-        }
+        if (isFieldVisible(key) && data[key] !== undefined) activeData[key] = data[key]
       })
-
       let uploadedFilesArray: any[] = []
       Object.keys(files).forEach(key => {
         if (isFieldVisible(key)) {
@@ -390,24 +367,14 @@ export default function PublicForm({
       const res = await fetch(`/api/forms/${form.id}/submissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          data: activeData, 
-          files: uploadedFilesArray,
-          captchaToken: turnstileToken 
-        }),
+        body: JSON.stringify({ data: activeData, files: uploadedFilesArray, captchaToken: turnstileToken }),
       })
-      const resData = await res.json()
-      if (!res.ok) throw new Error(resData.error || 'Failed to submit form')
-      
-      if (settings.redirectUrl) {
-         window.location.href = settings.redirectUrl
-      } else {
-         setSubmitted(true)
-      }
+      if (!res.ok) throw new Error('Submission failed')
+      if (settings.redirectUrl) window.location.href = settings.redirectUrl
+      else setSubmitted(true)
     } catch (err: any) {
       setError(err.message)
       setLoading(false)
-      // Reset turnstile on error
       turnstileRef.current?.reset()
       setTurnstileToken('')
     }
@@ -462,15 +429,7 @@ export default function PublicForm({
   const FormContent = ({ isInsideFrame = false }: { isInsideFrame?: boolean }) => {
     if (submitted) {
       return (
-        <div 
-          style={{ 
-            background: cs.bodyBg, 
-            fontFamily: `"${cs.fontFamily}", sans-serif`, 
-            padding: `${cs.containerPadding * 1.5}px 40px`, 
-            textAlign: 'center' 
-          }} 
-          className="animate-in fade-in zoom-in duration-500 min-h-full flex flex-col justify-center"
-        >
+        <div style={{ background: cs.bodyBg, fontFamily: `"${cs.fontFamily}", sans-serif`, padding: `${cs.containerPadding * 1.5}px 40px`, textAlign: 'center' }} className="animate-in fade-in zoom-in duration-500 min-h-full flex flex-col justify-center">
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg className="w-10 h-10 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
@@ -478,15 +437,6 @@ export default function PublicForm({
           </div>
           <h2 className="text-3xl font-extrabold mb-4" style={{ color: cs.bodyText }}>{settings.thankYouHeadline}</h2>
           <p className="text-lg opacity-70 leading-relaxed" style={{ color: cs.bodyText }}>{settings.thankYouMessage}</p>
-          {!isInsideFrame && (
-            <button 
-              onClick={() => setSubmitted(false)}
-              className="mt-8 text-sm font-semibold opacity-50 hover:opacity-100 transition-opacity"
-              style={{ color: cs.bodyText }}
-            >
-              Submit another response
-            </button>
-          )}
         </div>
       )
     }
@@ -509,119 +459,58 @@ export default function PublicForm({
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background: ${cs.accentColor}40; border-radius: 10px; }
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${cs.accentColor}60; }
-          
           ::placeholder { color: ${cs.bodyText} !important; opacity: 0.5 !important; }
-          select option {
-            background-color: ${cs.pageBgColor.toLowerCase() === '#0a0a0a' ? '#171717' : '#ffffff'} !important;
-            color: ${cs.pageBgColor.toLowerCase() === '#0a0a0a' ? '#ffffff' : '#000000'} !important;
-          }
-          input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: ${cs.pageBgColor.toLowerCase() === '#0a0a0a' ? 'invert(1)' : 'none'};
-          }
         `}</style>
 
-        {cs.pageBgImage && (
-          <div className="absolute inset-0 pointer-events-none" style={{ 
-            backgroundColor: `rgba(0,0,0,${(cs.pageBgOverlayOpacity || 0) / 100})`,
-            backdropFilter: `blur(${cs.pageBgBlur || 0}px)`,
-            zIndex: 0
-          }} />
-        )}
+        {cs.pageBgImage && <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: `rgba(0,0,0,${(cs.pageBgOverlayOpacity || 0) / 100})`, backdropFilter: `blur(${cs.pageBgBlur || 0}px)`, zIndex: 0 }} />}
 
         {(isSplit || isSidebar) && (
           <div className={`w-full ${isSplit ? 'lg:w-1/2' : 'lg:w-[320px] lg:shrink-0'} relative min-h-[300px] flex flex-col justify-between p-8 lg:p-12 z-10 ${side === 'right' ? 'lg:order-last border-l' : 'border-r'} border-white/10`}
-            style={{ 
-              background: isSplit ? (form.cover_image_url ? `url(${form.cover_image_url}) center/cover no-repeat` : cs.headerBg) : cs.headerBg,
-              color: cs.headerText
-            }}>
-            {isSplit && form.cover_image_url && <div className="absolute inset-0 bg-black/30 z-0" />}
+            style={{ background: isSplit ? (form.cover_image_url ? `url(${form.cover_image_url}) center/cover no-repeat` : cs.headerBg) : cs.headerBg, color: cs.headerText }}>
             <div className="relative z-10">
-              {form.logo_url && (
-                <div className="mb-10" style={{ textAlign: cs.logoAlignment || 'left' }}>
-                  <img src={form.logo_url} alt="Logo" style={{ height: `${cs.logoHeight || 48}px`, borderRadius: `${cs.logoBorderRadius || 0}px`, display: 'inline-block' }} />
-                </div>
-              )}
-              <h1 className="text-3xl lg:text-5xl font-black tracking-tight mb-4" style={{ textAlign: cs.headerAlignment }} dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
-              <p className="text-lg opacity-80 leading-relaxed max-w-xl" style={{ textAlign: cs.headerAlignment }} dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
+              {form.logo_url && <div className="mb-10"><img src={form.logo_url} alt="Logo" style={{ height: `${cs.logoHeight || 48}px`, borderRadius: `${cs.logoBorderRadius || 0}px` }} /></div>}
+              <h1 className="text-3xl lg:text-5xl font-black mb-4" dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
+              <p className="text-lg opacity-80 max-w-xl" dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
             </div>
           </div>
         )}
 
         <div className={`flex-1 relative z-10 flex flex-col ${isSplit || isSidebar ? 'justify-start' : 'items-center'}`}>
-          {!isSplit && !isSidebar && form.cover_image_url && (
-            <div className="w-full mb-8 relative overflow-hidden rounded-2xl shadow-xl" style={{ height: `${cs.coverHeight || 240}px`, maxWidth: `${cs.containerWidth}px` }}>
-              <img src={form.cover_image_url} alt="Cover" className="w-full h-full" style={{ objectFit: cs.coverImageFit || 'cover' }} />
-            </div>
-          )}
-          <div className={`w-full flex-1 flex flex-col ${isSplit || isSidebar ? 'bg-white lg:bg-transparent lg:shadow-none' : ''}`}
-            style={{ maxWidth: (isSplit || isSidebar) ? 'none' : `${cs.containerWidth}px` }}>
+          <div className={`w-full flex-1 flex flex-col ${isSplit || isSidebar ? 'bg-white lg:bg-transparent lg:shadow-none' : ''}`} style={{ maxWidth: (isSplit || isSidebar) ? 'none' : `${cs.containerWidth}px` }}>
             <div className={`w-full max-w-4xl mx-auto p-8 lg:p-16 ${isSplit || isSidebar ? 'bg-white h-full overflow-y-auto custom-scrollbar' : 'rounded-[2rem] shadow-2xl overflow-hidden'}`}
-              style={{
-                backgroundColor: isSplit || isSidebar ? '#fff' : cs.bodyBg,
-                borderRadius: isSplit || isSidebar ? '0' : `${cs.borderRadius}px`,
-                boxShadow: isSplit || isSidebar ? 'none' : cs.boxShadow,
-                transform: `scale(${cs.formScale || 1})`,
-                transformOrigin: 'top center',
-              }}>
+              style={{ backgroundColor: isSplit || isSidebar ? '#fff' : cs.bodyBg, borderRadius: isSplit || isSidebar ? '0' : `${cs.borderRadius}px`, boxShadow: isSplit || isSidebar ? 'none' : cs.boxShadow, transform: `scale(${cs.formScale || 1})`, transformOrigin: 'top center' }}>
               {!isSplit && !isSidebar && (
-                <div className="mb-12 pb-10 px-10 pt-10" style={{ textAlign: cs.headerAlignment, backgroundColor: cs.headerBg, color: cs.headerText, borderBottom: `1px solid ${cs.headerText}20` }}>
-                  {form.logo_url && (
-                    <div className="mb-8" style={{ textAlign: cs.logoAlignment || 'left' }}>
-                      <img src={form.logo_url} alt="Logo" style={{ height: `${cs.logoHeight || 48}px`, borderRadius: `${cs.logoBorderRadius || 0}px`, display: 'inline-block' }} />
-                    </div>
-                  )}
-                  <h1 className="text-4xl font-black tracking-tight mb-3" style={{ color: cs.headerText }} dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
-                  <p className="text-lg opacity-80 leading-relaxed font-medium" style={{ color: cs.headerText }} dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
+                <div className="mb-12 pb-10 px-10 pt-10" style={{ textAlign: cs.headerAlignment, backgroundColor: cs.headerBg, color: cs.headerText }}>
+                  <h1 className="text-4xl font-black mb-3" dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
+                  <p className="text-lg opacity-80" dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
                 </div>
               )}
-              {error && <div className="mb-8 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-sm text-red-700">{error}</div>}
-              {maxPage > 0 && (
-                <div className="w-full h-1.5 bg-gray-100 rounded-full mb-10 overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${((currentPage + 1) / (maxPage + 1)) * 100}%` }} className="h-full" style={{ background: cs.accentColor }} />
-                </div>
-              )}
+              {error && <div className="mb-8 p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
               <form onSubmit={handleSubmit} className="overflow-hidden relative min-h-[400px]">
                 <AnimatePresence mode="wait">
                   <motion.div key={currentPage} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.4 }} style={{ display: 'flex', flexDirection: 'column', gap: `${cs.fieldSpacing}px` }}>
                     {currentPageFields.map((field: any) => {
                       const fieldKey = field.id || field.label
-                      if (!isFieldVisible(fieldKey)) return null;
+                      if (!isFieldVisible(fieldKey)) return null
                       return (
-                        <div key={fieldKey} id={`field-${fieldKey}`} className="space-y-2 rounded-xl" style={field.fieldBg ? { backgroundColor: field.fieldBg, padding: '16px', borderRadius: '12px' } : undefined}>
-                          <label style={{ ...labelStyle, color: field.fieldTextColor || cs.labelColor }} dangerouslySetInnerHTML={{ __html: sanitize(field.label) + (field.required ? `<span style="color: ${cs.accentColor}" class="ml-1.5">*</span>` : '') }} />
+                        <div key={fieldKey} className="space-y-2">
+                          <label style={{ ...labelStyle, color: field.fieldTextColor || cs.labelColor }} dangerouslySetInnerHTML={{ __html: sanitize(field.label) + (field.required ? ` *` : '') }} />
                           {field.type === 'text' && <input type="text" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
                           {field.type === 'email' && <input type="email" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
-                          {field.type === 'number' && <input type="number" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, Number(e.target.value))} />}
+                          {field.type === 'number' && <input type="number" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
                           {field.type === 'textarea' && <textarea rows={4} style={{ ...getInternalInputStyle(), resize: 'vertical' }} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
-                          {field.type === 'select' && (
-                            <div className="relative">
-                              <select style={{ ...getInternalInputStyle(), appearance: 'none' }} defaultValue="" onChange={e => handleInputChange(fieldKey, e.target.value)}>
-                                <option value="" disabled>Select an option...</option>
-                                {field.options?.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
-                              </select>
-                            </div>
-                          )}
-                          {field.type === 'radio' && (
-                            <div className="space-y-2.5 mt-1">
-                              {field.options?.map((opt: string, i: number) => (
-                                <label key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl border-2" style={{ borderColor: cs.inputBorderColor, background: cs.inputBg }}>
-                                  <input type="radio" name={fieldKey} value={opt} onChange={e => handleInputChange(fieldKey, e.target.value)} style={{ accentColor: cs.accentColor }} />
-                                  <span style={{ color: cs.bodyText }}>{opt}</span>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                          {/* Other field types omitted for brevity in preview loops but kept logic intact */}
+                          {field.type === 'select' && <select style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)}><option value="">Select...</option>{field.options?.map((o: string, i: number) => <option key={i} value={o}>{o}</option>)}</select>}
+                          {field.type === 'radio' && <div className="space-y-2">{field.options?.map((o: string, i: number) => <label key={i} className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="radio" name={fieldKey} value={o} onChange={e => handleInputChange(fieldKey, e.target.value)} />{o}</label>)}</div>}
+                          {field.type === 'checkbox' && (field.options?.length ? <div className="space-y-2">{field.options.map((o: string, i: number) => <label key={i} className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="checkbox" onChange={e => handleCheckboxChange(fieldKey, o, e.target.checked)} />{o}</label>)}</div> : <label className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="checkbox" onChange={e => handleInputChange(fieldKey, e.target.checked)} /> {field.placeholder || 'I agree'}</label>)}
+                          {field.type === 'rating' && <div className="flex gap-2">{[1,2,3,4,5].map(s => <button key={s} type="button" onClick={() => handleInputChange(fieldKey, s)} style={{ color: (data[fieldKey] || 0) >= s ? cs.accentColor : '#ccc' }}><Smartphone className="w-8 h-8" /></button>)}</div>}
                         </div>
                       )
                     })}
                   </motion.div>
                 </AnimatePresence>
-                <div className="pt-8 mt-4 flex gap-4" style={{ borderTop: isLastPage ? 'none' : `1px solid ${cs.inputBorderColor}40` }}>
-                  {currentPage > 0 && <button type="button" onClick={handleBack} className="flex-1 py-4 px-6 font-bold border-2" style={{ color: cs.bodyText, borderColor: cs.inputBorderColor, borderRadius: btnRadius }}>Back</button>}
-                  <button type={isLastPage ? "submit" : "button"} onClick={isLastPage ? undefined : handleNext} className="flex-[2] py-4 px-6 font-bold" style={{ background: cs.accentColor, color: cs.buttonText, borderRadius: btnRadius }}>
-                    {isLastPage ? (loading ? 'Submitting...' : (settings.submitButtonText || 'Submit Form')) : 'Next Step'}
-                  </button>
+                <div className="pt-8 mt-4 flex gap-4">
+                  {currentPage > 0 && <button type="button" onClick={handleBack} className="flex-1 py-4 font-bold border-2" style={{ color: cs.bodyText, borderColor: cs.inputBorderColor, borderRadius: btnRadius }}>Back</button>}
+                  <button type={isLastPage ? "submit" : "button"} onClick={isLastPage ? undefined : handleNext} className="flex-[2] py-4 font-bold" style={{ background: cs.accentColor, color: cs.buttonText, borderRadius: btnRadius }}>{isLastPage ? (loading ? '...' : (settings.submitButtonText || 'Submit')) : 'Next'}</button>
                 </div>
               </form>
             </div>
@@ -633,33 +522,28 @@ export default function PublicForm({
 
   // --- DEVICE FRAME COMPONENT ---
   const DeviceFrame = ({ device, children, onRemove }: { device: any, children: React.ReactNode, onRemove: () => void }) => {
+    // Scaling to fit on standard screens while maintaining exact internal dimensions
+    const SCALE = 0.7;
     return (
-      <div className="flex flex-col items-center gap-6 group">
+      <div className="flex flex-col items-center gap-6 group" style={{ width: device.width * SCALE }}>
         <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{device.name}</span>
           <button onClick={onRemove} className="text-white/40 hover:text-red-400 transition-colors"><X className="w-3 h-3" /></button>
         </div>
         
-        <div className="relative shadow-2xl transition-transform hover:scale-[1.02] duration-500" style={{ width: device.width, height: device.height }}>
-          {/* Real UI Frame */}
-          <div className="absolute inset-0 bg-gray-900 rounded-[3rem] border-[12px] border-gray-800 ring-4 ring-gray-700/50 overflow-hidden">
-            {/* Notch */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-7 bg-gray-800 rounded-b-3xl z-[100] flex items-center justify-center gap-4">
-               <div className="w-2 h-2 rounded-full bg-gray-900" />
-               <div className="w-12 h-1 bg-gray-900 rounded-full" />
+        <div className="relative shadow-2xl" style={{ width: device.width, height: device.height, transform: `scale(${SCALE})`, transformOrigin: 'top center', marginBottom: `-${device.height * (1 - SCALE)}px` }}>
+          <div className="absolute inset-0 bg-gray-900 rounded-[3.5rem] border-[14px] border-gray-800 ring-8 ring-gray-700/30 overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-8 bg-gray-800 rounded-b-[2rem] z-[100] flex items-center justify-center gap-4">
+               <div className="w-2.5 h-2.5 rounded-full bg-gray-950" />
+               <div className="w-14 h-1.5 bg-gray-950 rounded-full" />
             </div>
-            {/* Screen Content */}
             <div className="w-full h-full bg-white overflow-y-auto custom-scrollbar relative">
-              <div className="transform origin-top scale-[1] min-h-full flex flex-col">
-                {children}
-              </div>
+              {children}
             </div>
-            {/* Home Indicator */}
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1/3 h-1.5 bg-gray-800 rounded-full z-[100]" />
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/3 h-1.5 bg-gray-800 rounded-full z-[100]" />
           </div>
         </div>
-        
-        <div className="text-[10px] font-mono text-white/20">{device.width} x {device.height}px</div>
+        <div className="text-[10px] font-mono text-white/20 mt-4">{device.width} x {device.height}px</div>
       </div>
     )
   }
@@ -667,52 +551,39 @@ export default function PublicForm({
   if (!isPreview) return <FormContent />
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-neutral-950 flex flex-col overflow-x-hidden relative">
       {/* Mega Device Toolbar */}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-4 p-2.5 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)]">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-4 p-2.5 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl">
         <div className="px-5 border-r border-white/10 flex flex-col justify-center">
-          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Studio Preview</span>
-          <span className="text-[9px] text-white/30 font-medium">{selectedMobileIds.length + (selectedTabletId ? 1 : 0) + (showDesktop ? 1 : 0)} Views Active</span>
+          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Studio</span>
+          <span className="text-[9px] text-white/30">{selectedMobileIds.length + (selectedTabletId ? 1 : 0) + (showDesktop ? 1 : 0)} Views</span>
         </div>
 
-        {/* Desktop Toggle */}
-        <button 
-          onClick={() => setShowDesktop(!showDesktop)}
-          className={cn("p-3.5 rounded-2xl transition-all relative group", showDesktop ? "bg-white text-indigo-600" : "text-white/40 hover:text-white")}
-        >
+        <button onClick={() => setShowDesktop(!showDesktop)} className={cn("p-4 rounded-2xl transition-all", showDesktop ? "bg-white text-indigo-600 shadow-xl" : "text-white/40 hover:text-white")}>
           <Laptop className="w-5 h-5" />
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-black text-[10px] text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Desktop View</div>
         </button>
 
-        {/* Mobile Dropdown */}
         <div className="relative">
-          <button 
-            onClick={() => setDropdownOpen(dropdownOpen === 'mobile' ? null : 'mobile')}
-            className={cn("flex items-center gap-2 p-3.5 rounded-2xl transition-all", selectedMobileIds.length > 0 ? "bg-white/10 text-white" : "text-white/40 hover:text-white")}
-          >
+          <button onClick={() => setDropdownOpen(dropdownOpen === 'mobile' ? null : 'mobile')} className={cn("flex items-center gap-2 p-4 rounded-2xl transition-all", selectedMobileIds.length > 0 ? "bg-white/10 text-white" : "text-white/40 hover:text-white")}>
             <Smartphone className="w-5 h-5" />
-            <span className="text-xs font-bold">{selectedMobileIds.length} / 4</span>
+            <span className="text-xs font-bold">{selectedMobileIds.length} / 2</span>
             <ChevronDown className={cn("w-4 h-4 transition-transform", dropdownOpen === 'mobile' && "rotate-180")} />
           </button>
           <AnimatePresence>
             {dropdownOpen === 'mobile' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full mt-4 left-0 w-64 bg-neutral-900 border border-white/10 rounded-3xl p-3 shadow-2xl">
-                <div className="text-[10px] font-black text-white/30 px-3 mb-2 uppercase tracking-widest">Select Mobiles (Max 4)</div>
-                <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full mt-4 left-0 w-72 bg-neutral-900 border border-white/10 rounded-[2rem] p-4 shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between mb-4 px-2">
+                   <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Select Mobiles (Max 2)</span>
+                   <button onClick={() => setDropdownOpen(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1 pr-1">
                   {DEVICES.mobile.map(dev => (
-                    <button 
-                      key={dev.id}
-                      onClick={() => {
-                        if (selectedMobileIds.includes(dev.id)) {
-                          setSelectedMobileIds(selectedMobileIds.filter(id => id !== dev.id))
-                        } else if (selectedMobileIds.length < 4) {
-                          setSelectedMobileIds([...selectedMobileIds, dev.id])
-                        }
-                      }}
-                      className={cn("w-full flex items-center justify-between p-3 rounded-xl transition-all text-left", selectedMobileIds.includes(dev.id) ? "bg-indigo-600 text-white" : "text-white/60 hover:bg-white/5")}
-                    >
+                    <button key={dev.id} onClick={() => {
+                        if (selectedMobileIds.includes(dev.id)) setSelectedMobileIds(selectedMobileIds.filter(id => id !== dev.id))
+                        else if (selectedMobileIds.length < 2) setSelectedMobileIds([...selectedMobileIds, dev.id])
+                      }} className={cn("w-full flex items-center justify-between p-3.5 rounded-xl transition-all text-left group", selectedMobileIds.includes(dev.id) ? "bg-indigo-600 text-white" : "text-white/60 hover:bg-white/5")}>
                       <span className="text-xs font-semibold">{dev.name}</span>
-                      {selectedMobileIds.includes(dev.id) ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                      {selectedMobileIds.includes(dev.id) ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />}
                     </button>
                   ))}
                 </div>
@@ -721,29 +592,24 @@ export default function PublicForm({
           </AnimatePresence>
         </div>
 
-        {/* Tablet Dropdown */}
         <div className="relative">
-          <button 
-            onClick={() => setDropdownOpen(dropdownOpen === 'tablet' ? null : 'tablet')}
-            className={cn("flex items-center gap-2 p-3.5 rounded-2xl transition-all", selectedTabletId ? "bg-white/10 text-white" : "text-white/40 hover:text-white")}
-          >
+          <button onClick={() => setDropdownOpen(dropdownOpen === 'tablet' ? null : 'tablet')} className={cn("flex items-center gap-2 p-4 rounded-2xl transition-all", selectedTabletId ? "bg-white/10 text-white" : "text-white/40 hover:text-white")}>
             <Tablet className="w-5 h-5" />
             <span className="text-xs font-bold">{selectedTabletId ? 1 : 0} / 1</span>
             <ChevronDown className={cn("w-4 h-4 transition-transform", dropdownOpen === 'tablet' && "rotate-180")} />
           </button>
           <AnimatePresence>
             {dropdownOpen === 'tablet' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full mt-4 right-0 w-64 bg-neutral-900 border border-white/10 rounded-3xl p-3 shadow-2xl">
-                <div className="text-[10px] font-black text-white/30 px-3 mb-2 uppercase tracking-widest">Select Tablet (Max 1)</div>
-                <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full mt-4 right-0 w-72 bg-neutral-900 border border-white/10 rounded-[2rem] p-4 shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between mb-4 px-2">
+                   <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Select Tablet (Max 1)</span>
+                   <button onClick={() => setDropdownOpen(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1 pr-1">
                   {DEVICES.tablet.map(dev => (
-                    <button 
-                      key={dev.id}
-                      onClick={() => setSelectedTabletId(selectedTabletId === dev.id ? null : dev.id)}
-                      className={cn("w-full flex items-center justify-between p-3 rounded-xl transition-all text-left", selectedTabletId === dev.id ? "bg-indigo-600 text-white" : "text-white/60 hover:bg-white/5")}
-                    >
+                    <button key={dev.id} onClick={() => setSelectedTabletId(selectedTabletId === dev.id ? null : dev.id)} className={cn("w-full flex items-center justify-between p-3.5 rounded-xl transition-all text-left group", selectedTabletId === dev.id ? "bg-indigo-600 text-white" : "text-white/60 hover:bg-white/5")}>
                       <span className="text-xs font-semibold">{dev.name}</span>
-                      {selectedTabletId === dev.id ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                      {selectedTabletId === dev.id ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />}
                     </button>
                   ))}
                 </div>
@@ -753,46 +619,28 @@ export default function PublicForm({
         </div>
       </div>
 
-      {/* Main Preview Workspace */}
-      <div className="flex-1 pt-32 pb-20 px-12 overflow-x-auto custom-scrollbar">
-        <div className="flex items-start gap-20 min-w-max h-full">
-          {/* Desktop View */}
+      <div className="flex-1 pt-40 pb-20 px-12 overflow-x-auto custom-scrollbar">
+        <div className="flex items-start gap-24 min-w-max h-full">
           {showDesktop && (
-            <div className="flex flex-col gap-6 w-[1200px] shrink-0 animate-in fade-in zoom-in duration-700">
+            <div className="flex flex-col gap-6 w-[1100px] shrink-0">
                <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 w-fit">
                 <Laptop className="w-3 h-3 text-white/40" />
-                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Desktop Canvas</span>
+                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Desktop</span>
               </div>
-              <div className="w-full bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/10">
-                <FormContent isInsideFrame />
-              </div>
+              <div className="w-full bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/10"><FormContent isInsideFrame /></div>
             </div>
           )}
-
-          {/* Tablet View */}
           {selectedTabletId && (() => {
             const dev = DEVICES.tablet.find(d => d.id === selectedTabletId)
-            return dev ? (
-              <DeviceFrame device={dev} onRemove={() => setSelectedTabletId(null)}>
-                <FormContent isInsideFrame />
-              </DeviceFrame>
-            ) : null
+            return dev ? <DeviceFrame device={dev} onRemove={() => setSelectedTabletId(null)}><FormContent isInsideFrame /></DeviceFrame> : null
           })()}
-
-          {/* Mobile Views */}
           {selectedMobileIds.map(id => {
             const dev = DEVICES.mobile.find(d => d.id === id)
-            return dev ? (
-              <DeviceFrame key={id} device={dev} onRemove={() => setSelectedMobileIds(selectedMobileIds.filter(mid => mid !== id))}>
-                <FormContent isInsideFrame />
-              </DeviceFrame>
-            ) : null
+            return dev ? <DeviceFrame key={id} device={dev} onRemove={() => setSelectedMobileIds(selectedMobileIds.filter(mid => mid !== id))}><FormContent isInsideFrame /></DeviceFrame> : null
           })}
         </div>
       </div>
-
-      {/* Workspace Grid Background */}
-      <div className="fixed inset-0 pointer-events-none -z-10 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
+      <div className="fixed inset-0 pointer-events-none -z-10 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:50px_50px]" />
     </div>
   )
 }
