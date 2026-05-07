@@ -465,11 +465,11 @@ export default function PublicForm({
   return (
     <div className={cn(
       "min-h-screen flex flex-col transition-all duration-500",
-      isPreview ? "bg-gray-900 py-12" : "bg-transparent"
+      isPreview ? "bg-gray-900 pt-24 pb-12" : "bg-transparent"
     )}>
-      {/* Device Switcher (Floating) */}
+      {/* Device Switcher (Floating Top) */}
       {isPreview && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl animate-in slide-in-from-bottom duration-500">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl animate-in slide-in-from-top duration-500">
           <div className="px-3 border-r border-white/10 flex flex-col justify-center">
             <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Preview Mode</span>
           </div>
