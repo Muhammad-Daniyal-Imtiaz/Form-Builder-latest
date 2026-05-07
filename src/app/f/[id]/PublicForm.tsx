@@ -550,8 +550,13 @@ export default function PublicForm({
 
   if (!isPreview) return <FormContent />
 
+  const isMultiView = selectedMobileIds.length > 0 || !!selectedTabletId;
+
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col overflow-x-hidden relative">
+    <div className={cn(
+      "min-h-screen flex flex-col overflow-x-hidden relative transition-colors duration-500",
+      isMultiView ? "bg-neutral-950" : "bg-transparent"
+    )}>
       {/* Mega Device Toolbar */}
       <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-4 p-2.5 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl">
         <div className="px-5 border-r border-white/10 flex flex-col justify-center">
@@ -619,15 +624,31 @@ export default function PublicForm({
         </div>
       </div>
 
-      <div className="flex-1 pt-40 pb-20 px-12 overflow-x-auto custom-scrollbar">
-        <div className="flex items-start gap-24 min-w-max h-full">
+      <div className={cn(
+        "flex-1 pb-20 overflow-x-auto custom-scrollbar transition-all duration-500",
+        isMultiView ? "pt-40 px-12" : "pt-0 px-0"
+      )}>
+        <div className={cn(
+          "flex items-start h-full transition-all duration-500",
+          isMultiView ? "gap-24 min-w-max" : "w-full"
+        )}>
           {showDesktop && (
-            <div className="flex flex-col gap-6 w-[1100px] shrink-0">
-               <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 w-fit">
-                <Laptop className="w-3 h-3 text-white/40" />
-                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Desktop</span>
+            <div className={cn(
+              "flex flex-col gap-6 shrink-0 transition-all duration-500",
+              isMultiView ? "w-[1200px]" : "w-full"
+            )}>
+               {isMultiView && (
+                 <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 w-fit">
+                  <Laptop className="w-3 h-3 text-white/40" />
+                  <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Desktop</span>
+                </div>
+               )}
+              <div className={cn(
+                "w-full transition-all duration-500",
+                isMultiView ? "bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/10" : "h-full"
+              )}>
+                <FormContent isInsideFrame />
               </div>
-              <div className="w-full bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/10"><FormContent isInsideFrame /></div>
             </div>
           )}
           {selectedTabletId && (() => {
@@ -640,7 +661,9 @@ export default function PublicForm({
           })}
         </div>
       </div>
-      <div className="fixed inset-0 pointer-events-none -z-10 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:50px_50px]" />
+      {isMultiView && (
+        <div className="fixed inset-0 pointer-events-none -z-10 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:50px_50px]" />
+      )}
     </div>
   )
 }
