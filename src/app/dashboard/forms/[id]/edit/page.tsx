@@ -19,7 +19,7 @@ function BuilderHeader() {
 
   if (loading) return null
 
-  const formPublicUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/f/${formId}`
+  const formPublicUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/f/${formId}?preview=true`
 
   return (
     <header 
