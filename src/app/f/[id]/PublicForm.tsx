@@ -1021,6 +1021,7 @@ export default function PublicForm({
             </div>
           </div>
         </div>
+      </div>
     </div>
   )
 }
