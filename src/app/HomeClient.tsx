@@ -77,7 +77,7 @@ export default function HomeClient() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.color1}, ${currentTheme.color2})` }}>
             <Layout className="w-4 h-4 text-white" />
           </div>
-          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>FormFlow</span>
+          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>Form Sync</span>
         </div>
 
         {/* Global Theme Switcher In Header */}
@@ -292,7 +292,7 @@ export default function HomeClient() {
              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: currentTheme.primary }}>
                <Layout className="w-3 h-3 text-white" />
              </div>
-             <span className="text-sm font-black tracking-tighter" style={{ color: currentTheme.text }}>FormFlow</span>
+             <span className="text-sm font-black tracking-tighter" style={{ color: currentTheme.text }}>Form Sync</span>
            </div>
            <div className="flex gap-8 text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>
               <a href="#" className="hover:text-white transition-colors">Terms</a>
@@ -300,7 +300,7 @@ export default function HomeClient() {
               <a href="#" className="hover:text-white transition-colors">Twitter</a>
               <a href="#" className="hover:text-white transition-colors">Support</a>
            </div>
-           <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>© 2024 FormFlow. All rights reserved.</p>
+           <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>© 2024 Form Sync. All rights reserved.</p>
         </div>
       </footer>
     </div>

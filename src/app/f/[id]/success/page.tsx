@@ -28,7 +28,7 @@ export default function SuccessPage() {
               href="/"
               className="text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors"
             >
-              Powered by FormFlow
+              Powered by Form Sync
             </Link>
           </div>
         </div>

@@ -35,7 +35,7 @@ export default function DashboardClient({ user, dbUser, forms, siteUrl }: any) {
             <Layout className="w-5 h-5 text-white" />
           </div>
           <span className="text-xl font-black tracking-tighter" style={{ color: currentTheme.text }}>
-            FormFlow <span style={{ color: currentTheme.textMuted }} className="font-medium">Dashboard</span>
+            Form Sync <span style={{ color: currentTheme.textMuted }} className="font-medium">Dashboard</span>
           </span>
         </div>
 

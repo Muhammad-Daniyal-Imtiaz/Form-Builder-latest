@@ -36,7 +36,7 @@ function BuilderHeader() {
         </Link>
         <div className="w-px h-6" style={{ backgroundColor: currentTheme.border }} />
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-none" style={{ color: currentTheme.primary }}>Form Builder</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-none" style={{ color: currentTheme.primary }}>Form Sync</p>
           <p className="text-sm font-black truncate max-w-[200px] sm:max-w-xs mt-1" style={{ color: currentTheme.text }}>
             {form?.title || 'Untitled Form'}
           </p>

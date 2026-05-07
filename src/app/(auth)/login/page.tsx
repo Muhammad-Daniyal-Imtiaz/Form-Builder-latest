@@ -72,7 +72,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(to bottom right, ${currentTheme.primary}, ${currentTheme.secondary})` }}>
             <Layout className="w-4 h-4 text-white" />
           </div>
-          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>FormFlow</span>
+          <span className="text-lg font-black tracking-tighter" style={{ color: currentTheme.textPrimary }}>Form Sync</span>
         </Link>
         
         <div className="hidden lg:block">
@@ -117,7 +117,7 @@ export default function LoginPage() {
             </div>
           </div>
           <h2 className="text-4xl font-black tracking-tighter mb-2" style={{ color: currentTheme.text }}>
-            Sign In to <span style={{ color: currentTheme.textMuted }}>FormFlow</span>
+            Sign In to <span style={{ color: currentTheme.textMuted }}>Form Sync</span>
           </h2>
           <p className="text-sm font-medium" style={{ color: currentTheme.textMuted }}>Continue your journey of building world-class forms.</p>
         </div>

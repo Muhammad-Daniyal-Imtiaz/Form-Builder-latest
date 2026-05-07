@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FormFlow | World-Class Form Builder",
+  title: "Form Sync | World-Class Form Builder",
   description: "Create stunning, high-performance forms in seconds.",
 };
 
