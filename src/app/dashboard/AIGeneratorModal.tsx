@@ -58,7 +58,7 @@ export default function AIGeneratorModal() {
       }
 
       setIsOpen(false)
-      router.push(`/dashboard/forms/${createData.id}/edit`)
+      router.push(`/dashboard/forms/${createData.formId}/edit`)
     } catch (err: any) {
       setError(err.message)
     } finally {

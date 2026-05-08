@@ -73,17 +73,61 @@ Respond ONLY with the JSON object, nothing else.`;
 
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: systemPrompt + "\n\nUser Request: " + prompt,
+      contents: [{ 
+        role: 'user', 
+        parts: [{ text: systemPrompt + "\n\nUser Request: " + prompt }] 
+      }],
       config: {
         responseMimeType: "application/json",
       }
     });
 
-    const jsonString = response.text || "{}";
+    let jsonString = response.text || "{}";
+    jsonString = jsonString.trim();
+    if (jsonString.startsWith('```')) {
+      jsonString = jsonString.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
+    }
     
     let generatedForm;
     try {
       generatedForm = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+      
+      // Transform to match FormSchema exactly
+      const finalForm: any = {
+        title: generatedForm.title || generatedForm.name || "AI Generated Form",
+        description: generatedForm.description || "",
+        fields: []
+      };
+
+      // Ensure every field has an ID and a supported type
+      if (Array.isArray(generatedForm.fields)) {
+        finalForm.fields = generatedForm.fields.map((field: any, index: number) => {
+          // Fallback 'file' to 'text' as 'file' is not in FormSchema
+          let type = field.type || 'text';
+          if (!['text', 'email', 'number', 'select', 'checkbox', 'radio', 'textarea'].includes(type)) {
+            type = 'text'; 
+          }
+          
+          return {
+            ...field,
+            id: field.id || `field_${Date.now()}_${index}`,
+            type: type
+          };
+        });
+      }
+
+      // Serialize styles and settings into description if they exist
+      let descPayload = finalForm.description;
+      if (generatedForm.customStyles) {
+        descPayload += `|||STYLES:${JSON.stringify(generatedForm.customStyles)}`;
+      }
+      if (generatedForm.settings) {
+        descPayload += `|||SETTINGS:${JSON.stringify(generatedForm.settings)}`;
+      }
+      finalForm.description = descPayload;
+
+      generatedForm = finalForm;
+      
     } catch (parseError) {
       console.error("Failed to parse JSON response:", jsonString);
       return NextResponse.json({ error: "AI returned invalid JSON structure. Please try again." }, { status: 500 });
