@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
 
+export const runtime = 'edge';
+
 export async function POST(req: Request) {
   try {
     const { prompt, model } = await req.json();
@@ -9,13 +11,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not configured in environment variables' }, { status: 500 });
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is missing from process.env');
+      return NextResponse.json({ 
+        error: 'API Key missing. Please ensure GEMINI_API_KEY is set in Cloudflare environment variables and redeploy your app.' 
+      }, { status: 500 });
     }
 
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY
-    });
+    const ai = new GoogleGenAI({ apiKey });
 
     // Default to gemma-4-26b-a4b-it if no model is selected
     const selectedModel = model || "gemma-4-26b-a4b-it";
@@ -66,7 +71,7 @@ Respond ONLY with the JSON object, nothing else.`;
 
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: [{ role: 'user', parts: [{ text: systemPrompt + "\n\nUser Request: " + prompt }] }],
+      contents: systemPrompt + "\n\nUser Request: " + prompt,
       config: {
         responseMimeType: "application/json",
       }
@@ -76,7 +81,6 @@ Respond ONLY with the JSON object, nothing else.`;
     
     let generatedForm;
     try {
-      // The SDK might return the JSON directly if responseMimeType is set
       generatedForm = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     } catch (parseError) {
       console.error("Failed to parse JSON response:", jsonString);
@@ -86,6 +90,6 @@ Respond ONLY with the JSON object, nothing else.`;
     return NextResponse.json(generatedForm);
   } catch (error: any) {
     console.error('AI Generation error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to generate form' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
