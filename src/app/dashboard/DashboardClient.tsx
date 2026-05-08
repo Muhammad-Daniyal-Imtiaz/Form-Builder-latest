@@ -10,6 +10,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/utils/cn'
 
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import AIGeneratorModal from './AIGeneratorModal'
 
 export default function DashboardClient({ user, dbUser, forms, siteUrl }: any) {
   const { currentTheme } = useTheme()
@@ -87,6 +88,7 @@ export default function DashboardClient({ user, dbUser, forms, siteUrl }: any) {
                 <button className="p-2 rounded-lg" style={{ color: currentTheme.textMuted }}><List className="w-4 h-4" /></button>
              </div>
              <ImportButton />
+             <AIGeneratorModal />
              <Link
                href="/dashboard/forms/new"
                className="inline-flex items-center px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
