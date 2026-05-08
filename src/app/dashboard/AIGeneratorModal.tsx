@@ -28,9 +28,16 @@ export default function AIGeneratorModal() {
         body: JSON.stringify({ prompt, model })
       })
 
-      const data = await res.json()
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json()
+          throw new Error(errorData.error || 'Failed to generate form')
+        }
+        throw new Error(`Server Error (${res.status}): Please ensure your API key is configured and try again.`)
+      }
 
-      if (!res.ok) throw new Error(data.error || 'Failed to generate form')
+      const data = await res.json()
 
       const createRes = await fetch('/api/import-form', {
         method: 'POST',

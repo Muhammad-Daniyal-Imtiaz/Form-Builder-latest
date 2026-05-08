@@ -1,10 +1,5 @@
-
 import { NextResponse } from 'next/server';
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-//gemma-3-4b
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
-});
+import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +8,14 @@ export async function POST(req: Request) {
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: 'GEMINI_API_KEY is not configured in environment variables' }, { status: 500 });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY
+    });
 
     // Default to gemma-4-26b-a4b-it if no model is selected
     const selectedModel = model || "gemma-4-26b-a4b-it";
@@ -36,17 +39,17 @@ SCHEMA:
     }
   ],
   "customStyles": {
-    "accentColor": "#HEX (button & link color)",
-    "headerBg": "#HEX (header background)",
-    "headerText": "#HEX (header text)",
-    "bodyBg": "#HEX (form card background)",
-    "bodyText": "#HEX (body text color)",
-    "labelColor": "#HEX (field label color)",
-    "inputBg": "#HEX (input background)",
-    "inputBorderColor": "#HEX (input border)",
-    "pageBgColor": "#HEX (full page background)",
+    "accentColor": "#HEX",
+    "headerBg": "#HEX",
+    "headerText": "#HEX",
+    "bodyBg": "#HEX",
+    "bodyText": "#HEX",
+    "labelColor": "#HEX",
+    "inputBg": "#HEX",
+    "inputBorderColor": "#HEX",
+    "pageBgColor": "#HEX",
     "layout": "centered|split|sidebar",
-    "layoutSide": "left|right (for split/sidebar)",
+    "layoutSide": "left|right",
     "borderRadius": 0-64,
     "containerWidth": 320-1200,
     "fontFamily": "Inter|Roboto|Outfit|Space Grotesk|DM Sans|Manrope|Playfair Display",
@@ -59,26 +62,25 @@ SCHEMA:
   }
 }
 
-Respond ONLY with the JSON object, nothing else. Provide beautiful, modern default styles if not specified.`;
+Respond ONLY with the JSON object, nothing else.`;
 
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: prompt,
+      contents: [{ role: 'user', parts: [{ text: systemPrompt + "\n\nUser Request: " + prompt }] }],
       config: {
-        systemInstruction: systemPrompt,
         responseMimeType: "application/json",
       }
     });
 
-    let jsonString = response.text || "{}";
-    jsonString = jsonString.replace(/^```json\n/, '').replace(/\n```$/, '');
-
+    const jsonString = response.text || "{}";
+    
     let generatedForm;
     try {
-      generatedForm = JSON.parse(jsonString);
+      // The SDK might return the JSON directly if responseMimeType is set
+      generatedForm = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     } catch (parseError) {
       console.error("Failed to parse JSON response:", jsonString);
-      throw new Error("AI returned invalid JSON.");
+      return NextResponse.json({ error: "AI returned invalid JSON structure. Please try again." }, { status: 500 });
     }
 
     return NextResponse.json(generatedForm);
