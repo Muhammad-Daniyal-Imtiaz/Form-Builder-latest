@@ -1,5 +1,5 @@
 import HomeClient from './HomeClient'
-
+//reload
 export const viewport = {
   width: 'device-width',
   initialScale: 0.9,
