@@ -106,7 +106,7 @@ export default function AIGeneratorModal() {
                   <button
                     type="button"
                     onClick={() => setModel('gemma-4-26b-a4b-it')}
-                    className={\`p-4 rounded-xl text-left border-2 transition-all \${model === 'gemma-4-26b-a4b-it' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}\`}
+                    className={`p-4 rounded-xl text-left border-2 transition-all ${model === 'gemma-4-26b-a4b-it' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}`}
                   >
                     <span className="block text-sm font-black mb-1" style={{ color: currentTheme.text }}>Gemma 4 26B</span>
                     <span className="block text-[10px] font-medium" style={{ color: currentTheme.textMuted }}>Fast & Efficient</span>
@@ -114,7 +114,7 @@ export default function AIGeneratorModal() {
                   <button
                     type="button"
                     onClick={() => setModel('gemma-4-31b-it')}
-                    className={\`p-4 rounded-xl text-left border-2 transition-all \${model === 'gemma-4-31b-it' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}\`}
+                    className={`p-4 rounded-xl text-left border-2 transition-all ${model === 'gemma-4-31b-it' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}`}
                   >
                     <span className="block text-sm font-black mb-1" style={{ color: currentTheme.text }}>Gemma 4 31B</span>
                     <span className="block text-[10px] font-medium" style={{ color: currentTheme.textMuted }}>Most Capable</span>

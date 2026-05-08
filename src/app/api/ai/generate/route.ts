@@ -1,6 +1,7 @@
+
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-
+//gemma-3-4b
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY
 });
@@ -71,7 +72,7 @@ Respond ONLY with the JSON object, nothing else. Provide beautiful, modern defau
 
     let jsonString = response.text || "{}";
     jsonString = jsonString.replace(/^```json\n/, '').replace(/\n```$/, '');
-    
+
     let generatedForm;
     try {
       generatedForm = JSON.parse(jsonString);
