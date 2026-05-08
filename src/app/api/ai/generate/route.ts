@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
 
+// Ensure this runs in the Node.js runtime (the Google SDK and env access are not Edge-safe).
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { prompt, model } = await req.json();
@@ -88,6 +92,11 @@ Respond ONLY with the JSON object, nothing else.`;
     return NextResponse.json(generatedForm);
   } catch (error: any) {
     console.error('AI Generation error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    const message =
+      typeof error?.message === 'string' && error.message.length > 0
+        ? error.message
+        : 'Internal Server Error';
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
