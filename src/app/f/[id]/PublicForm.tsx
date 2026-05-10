@@ -159,10 +159,10 @@ export default function PublicForm({
   const searchParams = useSearchParams()
   const isPreview = searchParams.get('preview') === 'true'
   
-  // Multi-Device State
-  const [selectedMobileIds, setSelectedMobileIds] = useState<string[]>([])
-  const [selectedTabletId, setSelectedTabletId] = useState<string | null>(null)
-  const [showDesktop, setShowDesktop] = useState(true)
+  // Single-View State
+  const [activeView, setActiveView] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+  const [activeMobileId, setActiveMobileId] = useState<string>('iphone-14-pro')
+  const [activeTabletId, setActiveTabletId] = useState<string>('ipad-pro-11')
   const [dropdownOpen, setDropdownOpen] = useState<'mobile' | 'tablet' | null>(null)
 
   const cs: CustomStyles = { ...DEFAULT_STYLES, ...rawStyles }
@@ -426,7 +426,11 @@ export default function PublicForm({
   const side = cs.layoutSide || 'left'
 
   // --- RENDER FORM COMPONENT ---
-  const FormContent = ({ isInsideFrame = false }: { isInsideFrame?: boolean }) => {
+  const FormContent = ({ isInsideFrame = false, forceMobileLayout = false }: { isInsideFrame?: boolean, forceMobileLayout?: boolean }) => {
+    const rowClass = forceMobileLayout ? 'flex-col' : 'md:flex-row flex-col'
+    const leftWidthClass = forceMobileLayout ? 'w-full' : (isSplit ? 'md:w-1/2 w-full' : 'md:w-[320px] md:shrink-0 w-full')
+    const rightAlignClass = forceMobileLayout ? 'items-center' : (isSplit || isSidebar ? 'md:justify-start items-center' : 'items-center')
+
     if (submitted) {
       return (
         <div style={{ background: cs.bodyBg, fontFamily: `"${cs.fontFamily}", sans-serif`, padding: `${cs.containerPadding * 1.5}px 40px`, textAlign: 'center' }} className="animate-in fade-in zoom-in duration-500 min-h-full flex flex-col justify-center">
@@ -442,7 +446,7 @@ export default function PublicForm({
     }
 
     return (
-      <div className={`flex-1 transition-colors duration-500 flex flex-col ${isSplit || isSidebar ? 'lg:flex-row' : 'items-center justify-center p-4 md:p-8'}`} 
+      <div className={`${isInsideFrame ? 'min-h-full h-full' : 'min-h-screen'} w-full transition-colors duration-500 flex ${isSplit || isSidebar ? rowClass : 'flex-col items-center justify-center p-4 md:p-8'}`} 
         style={{ 
           backgroundColor: cs.pageBgColor,
           fontFamily: `"${cs.fontFamily}", sans-serif`,
@@ -465,19 +469,19 @@ export default function PublicForm({
         {cs.pageBgImage && <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: `rgba(0,0,0,${(cs.pageBgOverlayOpacity || 0) / 100})`, backdropFilter: `blur(${cs.pageBgBlur || 0}px)`, zIndex: 0 }} />}
 
         {(isSplit || isSidebar) && (
-          <div className={`w-full ${isSplit ? 'lg:w-1/2' : 'lg:w-[320px] lg:shrink-0'} relative min-h-[300px] flex flex-col justify-between p-8 lg:p-12 z-10 ${side === 'right' ? 'lg:order-last border-l' : 'border-r'} border-white/10`}
+          <div className={`${leftWidthClass} relative ${isInsideFrame ? 'min-h-[200px]' : 'min-h-[300px]'} flex flex-col justify-between p-8 md:p-12 z-10 ${side === 'right' ? (forceMobileLayout ? 'border-b' : 'md:order-last md:border-l border-b') : (forceMobileLayout ? 'border-b' : 'md:border-r border-b')} border-white/10`}
             style={{ background: isSplit ? (form.cover_image_url ? `url(${form.cover_image_url}) center/cover no-repeat` : cs.headerBg) : cs.headerBg, color: cs.headerText }}>
             <div className="relative z-10">
               {form.logo_url && <div className="mb-10"><img src={form.logo_url} alt="Logo" style={{ height: `${cs.logoHeight || 48}px`, borderRadius: `${cs.logoBorderRadius || 0}px` }} /></div>}
-              <h1 className="text-3xl lg:text-5xl font-black mb-4" dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
+              <h1 className="text-3xl md:text-5xl font-black mb-4" dangerouslySetInnerHTML={{ __html: sanitize(form.title) }} />
               <p className="text-lg opacity-80 max-w-xl" dangerouslySetInnerHTML={{ __html: sanitize(displayDescription) }} />
             </div>
           </div>
         )}
 
-        <div className={`flex-1 relative z-10 flex flex-col ${isSplit || isSidebar ? 'justify-start' : 'items-center'}`}>
-          <div className={`w-full flex-1 flex flex-col ${isSplit || isSidebar ? 'bg-white lg:bg-transparent lg:shadow-none' : ''}`} style={{ maxWidth: (isSplit || isSidebar) ? 'none' : `${cs.containerWidth}px` }}>
-            <div className={`w-full max-w-4xl mx-auto p-8 lg:p-16 ${isSplit || isSidebar ? 'bg-white h-full overflow-y-auto custom-scrollbar' : 'rounded-[2rem] shadow-2xl overflow-hidden'}`}
+        <div className={`flex-1 relative z-10 flex flex-col ${rightAlignClass}`}>
+          <div className={`w-full flex-1 flex flex-col ${isSplit || isSidebar ? 'bg-white shadow-none' : ''}`} style={{ maxWidth: (isSplit || isSidebar) ? 'none' : `${cs.containerWidth}px` }}>
+            <div className={`w-full max-w-4xl mx-auto p-8 md:p-16 ${isSplit || isSidebar ? 'bg-white h-full overflow-y-auto custom-scrollbar' : 'rounded-[2rem] shadow-2xl overflow-hidden'}`}
               style={{ backgroundColor: isSplit || isSidebar ? '#fff' : cs.bodyBg, borderRadius: isSplit || isSidebar ? '0' : `${cs.borderRadius}px`, boxShadow: isSplit || isSidebar ? 'none' : cs.boxShadow, transform: `scale(${cs.formScale || 1})`, transformOrigin: 'top center' }}>
               {!isSplit && !isSidebar && (
                 <div className="mb-12 pb-10 px-10 pt-10" style={{ textAlign: cs.headerAlignment, backgroundColor: cs.headerBg, color: cs.headerText }}>
@@ -521,74 +525,71 @@ export default function PublicForm({
   }
 
   // --- DEVICE FRAME COMPONENT ---
-  const DeviceFrame = ({ device, children, onRemove }: { device: any, children: React.ReactNode, onRemove: () => void }) => {
-    // Scaling to fit on standard screens while maintaining exact internal dimensions
-    const SCALE = 0.7;
+  const DeviceFrame = ({ device, children }: { device: any, children: React.ReactNode }) => {
+    const isMobile = device.width < 500;
+    const SCALE = isMobile ? 0.8 : 0.65;
+    
     return (
-      <div className="flex flex-col items-center gap-6 group" style={{ width: device.width * SCALE }}>
-        <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-          <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{device.name}</span>
-          <button onClick={onRemove} className="text-white/40 hover:text-red-400 transition-colors"><X className="w-3 h-3" /></button>
+      <div className="flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-500">
+        <div className="flex items-center gap-3 px-5 py-2.5 bg-white/10 rounded-full border border-white/20 shadow-lg backdrop-blur-md">
+          <span className="text-xs font-black text-white uppercase tracking-widest">{device.name}</span>
         </div>
         
-        <div className="relative shadow-2xl" style={{ width: device.width, height: device.height, transform: `scale(${SCALE})`, transformOrigin: 'top center', marginBottom: `-${device.height * (1 - SCALE)}px` }}>
-          <div className="absolute inset-0 bg-gray-900 rounded-[3.5rem] border-[14px] border-gray-800 ring-8 ring-gray-700/30 overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-8 bg-gray-800 rounded-b-[2rem] z-[100] flex items-center justify-center gap-4">
+        <div className="relative shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] rounded-[3.5rem]" style={{ width: device.width, height: device.height, transform: `scale(${SCALE})`, transformOrigin: 'top center', marginBottom: `-${device.height * (1 - SCALE)}px` }}>
+          <div className="absolute inset-0 bg-gray-950 rounded-[3.5rem] border-[14px] border-gray-900 ring-[8px] ring-gray-800/60 shadow-2xl overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-gray-900 rounded-b-3xl z-[100] flex items-center justify-center gap-3">
                <div className="w-2.5 h-2.5 rounded-full bg-gray-950" />
-               <div className="w-14 h-1.5 bg-gray-950 rounded-full" />
+               <div className="w-12 h-1.5 bg-gray-950 rounded-full" />
             </div>
             <div className="w-full h-full bg-white overflow-y-auto custom-scrollbar relative">
               {children}
             </div>
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/3 h-1.5 bg-gray-800 rounded-full z-[100]" />
+            <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-gray-900/40 backdrop-blur-md rounded-full z-[100]" />
           </div>
         </div>
-        <div className="text-[10px] font-mono text-white/20 mt-4">{device.width} x {device.height}px</div>
       </div>
     )
   }
 
   if (!isPreview) return <FormContent />
 
-  const isMultiView = selectedMobileIds.length > 0 || !!selectedTabletId;
-
   return (
     <div className={cn(
       "min-h-screen flex flex-col overflow-x-hidden relative transition-colors duration-500",
-      isMultiView ? "bg-neutral-950" : "bg-transparent"
+      activeView !== 'desktop' ? "bg-neutral-950" : "bg-transparent"
     )}>
-      {/* Mega Device Toolbar */}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-4 p-2.5 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl">
-        <div className="px-5 border-r border-white/10 flex flex-col justify-center">
-          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Studio</span>
-          <span className="text-[9px] text-white/30">{selectedMobileIds.length + (selectedTabletId ? 1 : 0) + (showDesktop ? 1 : 0)} Views</span>
-        </div>
-
-        <button onClick={() => setShowDesktop(!showDesktop)} className={cn("p-4 rounded-2xl transition-all", showDesktop ? "bg-white text-indigo-600 shadow-xl" : "text-white/40 hover:text-white")}>
-          <Laptop className="w-5 h-5" />
+      {/* Professional Single-View Device Toolbar */}
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center p-2 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-[2rem] shadow-2xl gap-1">
+        
+        <button 
+          onClick={() => { setActiveView('desktop'); setDropdownOpen(null); }} 
+          className={cn("flex items-center gap-2 px-5 py-3 rounded-2xl transition-all font-bold text-sm", activeView === 'desktop' ? "bg-white text-indigo-600 shadow-lg" : "text-white/70 hover:text-white hover:bg-white/10")}
+        >
+          <Laptop className="w-4 h-4" />
+          <span>Desktop</span>
         </button>
 
+        <div className="w-px h-8 bg-white/10 mx-1" />
+
         <div className="relative">
-          <button onClick={() => setDropdownOpen(dropdownOpen === 'mobile' ? null : 'mobile')} className={cn("flex items-center gap-2 p-4 rounded-2xl transition-all", selectedMobileIds.length > 0 ? "bg-white/10 text-white" : "text-white/40 hover:text-white")}>
-            <Smartphone className="w-5 h-5" />
-            <span className="text-xs font-bold">{selectedMobileIds.length} / 2</span>
-            <ChevronDown className={cn("w-4 h-4 transition-transform", dropdownOpen === 'mobile' && "rotate-180")} />
+          <button 
+            onClick={() => { 
+              if (activeView !== 'tablet') setActiveView('tablet');
+              setDropdownOpen(dropdownOpen === 'tablet' ? null : 'tablet'); 
+            }} 
+            className={cn("flex items-center gap-2 px-5 py-3 rounded-2xl transition-all font-bold text-sm", activeView === 'tablet' ? "bg-white text-indigo-600 shadow-lg" : "text-white/70 hover:text-white hover:bg-white/10")}
+          >
+            <Tablet className="w-4 h-4" />
+            <span>Tablet</span>
+            <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform opacity-50", dropdownOpen === 'tablet' && "rotate-180")} />
           </button>
           <AnimatePresence>
-            {dropdownOpen === 'mobile' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full mt-4 left-0 w-72 bg-neutral-900 border border-white/10 rounded-[2rem] p-4 shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between mb-4 px-2">
-                   <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Select Mobiles (Max 2)</span>
-                   <button onClick={() => setDropdownOpen(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-                  {DEVICES.mobile.map(dev => (
-                    <button key={dev.id} onClick={() => {
-                        if (selectedMobileIds.includes(dev.id)) setSelectedMobileIds(selectedMobileIds.filter(id => id !== dev.id))
-                        else if (selectedMobileIds.length < 2) setSelectedMobileIds([...selectedMobileIds, dev.id])
-                      }} className={cn("w-full flex items-center justify-between p-3.5 rounded-xl transition-all text-left group", selectedMobileIds.includes(dev.id) ? "bg-indigo-600 text-white" : "text-white/60 hover:bg-white/5")}>
-                      <span className="text-xs font-semibold">{dev.name}</span>
-                      {selectedMobileIds.includes(dev.id) ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />}
+            {dropdownOpen === 'tablet' && (
+              <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute top-full mt-4 left-1/2 -translate-x-1/2 w-64 bg-neutral-900 border border-white/10 rounded-[2rem] p-3 shadow-2xl overflow-hidden origin-top">
+                <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1">
+                  {DEVICES.tablet.map(dev => (
+                    <button key={dev.id} onClick={() => { setActiveTabletId(dev.id); setActiveView('tablet'); setDropdownOpen(null); }} className={cn("w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left", activeTabletId === dev.id ? "bg-indigo-600 text-white font-bold" : "text-white/60 hover:bg-white/10 font-medium")}>
+                      <span className="text-xs">{dev.name}</span>
                     </button>
                   ))}
                 </div>
@@ -597,24 +598,27 @@ export default function PublicForm({
           </AnimatePresence>
         </div>
 
+        <div className="w-px h-8 bg-white/10 mx-1" />
+
         <div className="relative">
-          <button onClick={() => setDropdownOpen(dropdownOpen === 'tablet' ? null : 'tablet')} className={cn("flex items-center gap-2 p-4 rounded-2xl transition-all", selectedTabletId ? "bg-white/10 text-white" : "text-white/40 hover:text-white")}>
-            <Tablet className="w-5 h-5" />
-            <span className="text-xs font-bold">{selectedTabletId ? 1 : 0} / 1</span>
-            <ChevronDown className={cn("w-4 h-4 transition-transform", dropdownOpen === 'tablet' && "rotate-180")} />
+          <button 
+            onClick={() => { 
+              if (activeView !== 'mobile') setActiveView('mobile');
+              setDropdownOpen(dropdownOpen === 'mobile' ? null : 'mobile'); 
+            }} 
+            className={cn("flex items-center gap-2 px-5 py-3 rounded-2xl transition-all font-bold text-sm", activeView === 'mobile' ? "bg-white text-indigo-600 shadow-lg" : "text-white/70 hover:text-white hover:bg-white/10")}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Mobile</span>
+            <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform opacity-50", dropdownOpen === 'mobile' && "rotate-180")} />
           </button>
           <AnimatePresence>
-            {dropdownOpen === 'tablet' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-full mt-4 right-0 w-72 bg-neutral-900 border border-white/10 rounded-[2rem] p-4 shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between mb-4 px-2">
-                   <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Select Tablet (Max 1)</span>
-                   <button onClick={() => setDropdownOpen(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-                  {DEVICES.tablet.map(dev => (
-                    <button key={dev.id} onClick={() => setSelectedTabletId(selectedTabletId === dev.id ? null : dev.id)} className={cn("w-full flex items-center justify-between p-3.5 rounded-xl transition-all text-left group", selectedTabletId === dev.id ? "bg-indigo-600 text-white" : "text-white/60 hover:bg-white/5")}>
-                      <span className="text-xs font-semibold">{dev.name}</span>
-                      {selectedTabletId === dev.id ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />}
+            {dropdownOpen === 'mobile' && (
+              <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute top-full mt-4 right-0 w-64 bg-neutral-900 border border-white/10 rounded-[2rem] p-3 shadow-2xl overflow-hidden origin-top">
+                <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-1">
+                  {DEVICES.mobile.map(dev => (
+                    <button key={dev.id} onClick={() => { setActiveMobileId(dev.id); setActiveView('mobile'); setDropdownOpen(null); }} className={cn("w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left", activeMobileId === dev.id ? "bg-indigo-600 text-white font-bold" : "text-white/60 hover:bg-white/10 font-medium")}>
+                      <span className="text-xs">{dev.name}</span>
                     </button>
                   ))}
                 </div>
@@ -625,43 +629,25 @@ export default function PublicForm({
       </div>
 
       <div className={cn(
-        "flex-1 pb-20 overflow-x-auto custom-scrollbar transition-all duration-500",
-        isMultiView ? "pt-40 px-12" : "pt-0 px-0"
+        "flex-1 transition-all duration-500 flex",
+        activeView === 'desktop' ? "pt-0 w-full" : "items-center justify-center pt-28 pb-16"
       )}>
-        <div className={cn(
-          "flex items-start h-full transition-all duration-500",
-          isMultiView ? "gap-24 min-w-max" : "w-full"
-        )}>
-          {showDesktop && (
-            <div className={cn(
-              "flex flex-col gap-6 shrink-0 transition-all duration-500",
-              isMultiView ? "w-[1200px]" : "w-full"
-            )}>
-               {isMultiView && (
-                 <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 w-fit">
-                  <Laptop className="w-3 h-3 text-white/40" />
-                  <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Desktop</span>
-                </div>
-               )}
-              <div className={cn(
-                "w-full transition-all duration-500",
-                isMultiView ? "bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-white/10" : "h-full"
-              )}>
-                <FormContent isInsideFrame />
-              </div>
-            </div>
-          )}
-          {selectedTabletId && (() => {
-            const dev = DEVICES.tablet.find(d => d.id === selectedTabletId)
-            return dev ? <DeviceFrame device={dev} onRemove={() => setSelectedTabletId(null)}><FormContent isInsideFrame /></DeviceFrame> : null
-          })()}
-          {selectedMobileIds.map(id => {
-            const dev = DEVICES.mobile.find(d => d.id === id)
-            return dev ? <DeviceFrame key={id} device={dev} onRemove={() => setSelectedMobileIds(selectedMobileIds.filter(mid => mid !== id))}><FormContent isInsideFrame /></DeviceFrame> : null
-          })}
-        </div>
+        {activeView === 'desktop' && (
+           <FormContent />
+        )}
+        {activeView === 'tablet' && (
+           <DeviceFrame device={DEVICES.tablet.find(d => d.id === activeTabletId)}>
+             <FormContent isInsideFrame forceMobileLayout />
+           </DeviceFrame>
+        )}
+        {activeView === 'mobile' && (
+           <DeviceFrame device={DEVICES.mobile.find(d => d.id === activeMobileId)}>
+             <FormContent isInsideFrame forceMobileLayout />
+           </DeviceFrame>
+        )}
       </div>
-      {isMultiView && (
+      
+      {activeView !== 'desktop' && (
         <div className="fixed inset-0 pointer-events-none -z-10 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:50px_50px]" />
       )}
     </div>
