@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
 // Ensure this runs in the Node.js runtime (the Google SDK and env access are not Edge-safe).
 export const runtime = 'nodejs';
@@ -71,15 +71,22 @@ SCHEMA:
 
 Respond ONLY with the JSON object, nothing else.`;
 
+    const config: any = {
+      systemInstruction: systemPrompt,
+      responseMimeType: "application/json",
+    };
+
+    // The gemma-4-26b-a4b-it model requires thinking to be explicitly enabled
+    if (selectedModel === 'gemma-4-26b-a4b-it') {
+      config.thinkingConfig = {
+        thinkingLevel: ThinkingLevel.HIGH
+      };
+    }
+
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: [{ 
-        role: 'user', 
-        parts: [{ text: systemPrompt + "\n\nUser Request: " + prompt }] 
-      }],
-      config: {
-        responseMimeType: "application/json",
-      }
+      contents: prompt,
+      config
     });
 
     let jsonString = response.text || "{}";
