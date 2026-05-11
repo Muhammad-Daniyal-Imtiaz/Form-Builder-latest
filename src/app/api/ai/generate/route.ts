@@ -7,11 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const { prompt, model } = await req.json();
-
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
-    }
+    const { prompt, model, imageBase64, imageMimeType } = await req.json();
 
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -24,10 +20,11 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Default to gemma-4-26b-a4b-it if no model is selected
-    const selectedModel = model || "gemma-4-26b-a4b-it";
+    // Default to 31B if an image is provided since it's the most capable for vision, otherwise default to 26B
+    const selectedModel = model || (imageBase64 ? "gemma-4-31b-it" : "gemma-4-26b-a4b-it");
 
-    const systemPrompt = `You are an AI Form Generator. Your task is to generate a valid JSON structure for a form based on the user's prompt. 
+    const systemPrompt = `You are an AI Form Generator. Your task is to generate a valid JSON structure for a form based on the user's prompt and/or the provided image.
+If an image is provided, extract the form fields, labels, structure, and intent to build a digital version of that form.
 Do not wrap the JSON in markdown code blocks, just return the raw JSON object.
 
 SCHEMA:
@@ -83,9 +80,27 @@ Respond ONLY with the JSON object, nothing else.`;
       };
     }
 
+    const requestContents: any[] = [];
+    if (imageBase64 && imageMimeType) {
+      requestContents.push({
+        inlineData: {
+          data: imageBase64,
+          mimeType: imageMimeType
+        }
+      });
+    }
+
+    if (prompt) {
+      requestContents.push(prompt);
+    }
+
+    if (requestContents.length === 0) {
+      return NextResponse.json({ error: 'Either a prompt or an image is required' }, { status: 400 });
+    }
+
     const response = await ai.models.generateContent({
       model: selectedModel,
-      contents: prompt,
+      contents: requestContents,
       config
     });
 
