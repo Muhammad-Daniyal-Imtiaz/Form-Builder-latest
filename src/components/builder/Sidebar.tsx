@@ -270,7 +270,7 @@ export function Sidebar() {
   return (
     <aside 
       className="w-80 border-r h-[calc(100vh-56px)] sticky top-14 flex flex-col shadow-2xl z-10 shrink-0 overflow-hidden transition-colors duration-500"
-      style={{ backgroundColor: `${currentTheme.bg}cc`, borderColor: currentTheme.border, backdropBlur: '40px' }}
+      style={{ backgroundColor: `${currentTheme.bg}cc`, borderColor: currentTheme.border, backdropFilter: 'blur(40px)' }}
     >
       <div className="flex p-2 gap-1 border-b" style={{ backgroundColor: `${currentTheme.bg}40`, borderColor: currentTheme.border }}>
         <button

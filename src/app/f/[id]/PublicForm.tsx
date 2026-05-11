@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
 import { useSearchParams } from 'next/navigation'
-import { Monitor, Tablet, Smartphone, ChevronDown, Plus, X, Laptop } from 'lucide-react'
+import { Monitor, Tablet, Smartphone, ChevronDown, Plus, X, Laptop, Mic, MicOff } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 interface CustomStyles {
@@ -126,6 +126,22 @@ const DEFAULT_SETTINGS: FormSettings = {
 
 import DOMPurify from 'dompurify'
 
+type BrowserSpeechRecognition = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: any) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+function getSpeechRecognition() {
+  if (typeof window === 'undefined') return null
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
+}
+
 export default function PublicForm({ 
   form, 
   customStyles: rawStyles,
@@ -152,7 +168,9 @@ export default function PublicForm({
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string>('')
+  const [listeningFieldId, setListeningFieldId] = useState<string | null>(null)
   const turnstileRef = useRef<TurnstileInstance>(null)
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
   const requiresCaptcha = Boolean(turnstileSiteKey)
 
@@ -264,6 +282,60 @@ export default function PublicForm({
     setData(prev => ({ ...prev, [fieldId]: value }))
     executeJumpLogic(fieldId, value)
   }
+
+  const stopVoiceInput = () => {
+    recognitionRef.current?.stop()
+    recognitionRef.current = null
+    setListeningFieldId(null)
+  }
+
+  const startVoiceInput = (fieldId: string) => {
+    const Recognition = getSpeechRecognition()
+    if (!Recognition) {
+      setError('Voice input is not supported in this browser. Chrome and Edge work best.')
+      return
+    }
+
+    if (recognitionRef.current) stopVoiceInput()
+
+    const recognition: BrowserSpeechRecognition = new Recognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+    recognition.onresult = (event: any) => {
+      let transcript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) transcript += event.results[i][0].transcript
+      }
+      if (!transcript.trim()) return
+      setData(prev => {
+        const currentValue = prev[fieldId] || ''
+        const nextValue = `${currentValue}${currentValue ? ' ' : ''}${transcript}`.trim()
+        setTimeout(() => executeJumpLogic(fieldId, nextValue), 0)
+        return { ...prev, [fieldId]: nextValue }
+      })
+    }
+    recognition.onerror = () => stopVoiceInput()
+    recognition.onend = () => setListeningFieldId(null)
+    recognitionRef.current = recognition
+    setListeningFieldId(fieldId)
+    recognition.start()
+  }
+
+  const VoiceButton = ({ fieldId }: { fieldId: string }) => (
+    <button
+      type="button"
+      onClick={() => listeningFieldId === fieldId ? stopVoiceInput() : startVoiceInput(fieldId)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full transition-all"
+      style={{
+        backgroundColor: listeningFieldId === fieldId ? `${cs.accentColor}22` : `${cs.bodyText}10`,
+        color: listeningFieldId === fieldId ? cs.accentColor : cs.bodyText,
+      }}
+      aria-label={listeningFieldId === fieldId ? 'Stop voice input' : 'Start voice input'}
+    >
+      {listeningFieldId === fieldId ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+    </button>
+  )
 
   const handleCheckboxChange = (fieldId: string, option: string, checked: boolean) => {
     setData(prev => {
@@ -499,10 +571,45 @@ export default function PublicForm({
                       return (
                         <div key={fieldKey} className="space-y-2">
                           <label style={{ ...labelStyle, color: field.fieldTextColor || cs.labelColor }} dangerouslySetInnerHTML={{ __html: sanitize(field.label) + (field.required ? ` *` : '') }} />
-                          {field.type === 'text' && <input type="text" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
-                          {field.type === 'email' && <input type="email" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
-                          {field.type === 'number' && <input type="number" style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
-                          {field.type === 'textarea' && <textarea rows={4} style={{ ...getInternalInputStyle(), resize: 'vertical' }} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
+                  {field.type === 'text' && (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={data[fieldKey] || ''}
+                        placeholder={field.placeholder || ''}
+                        style={{ ...getInternalInputStyle(), paddingRight: '3rem' }}
+                        onChange={e => handleInputChange(fieldKey, e.target.value)}
+                      />
+                      <VoiceButton fieldId={fieldKey} />
+                    </div>
+                  )}
+                  {field.type === 'email' && (
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={data[fieldKey] || ''}
+                        placeholder={field.placeholder || ''}
+                        style={{ ...getInternalInputStyle(), paddingRight: '3rem' }}
+                        onChange={e => handleInputChange(fieldKey, e.target.value)}
+                      />
+                      <VoiceButton fieldId={fieldKey} />
+                    </div>
+                  )}
+                  {field.type === 'number' && <input type="number" value={data[fieldKey] || ''} placeholder={field.placeholder || ''} style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)} />}
+                  {field.type === 'textarea' && (
+                    <div className="relative">
+                      <textarea
+                        rows={4}
+                        value={data[fieldKey] || ''}
+                        placeholder={field.placeholder || ''}
+                        style={{ ...getInternalInputStyle(), resize: 'vertical', paddingRight: '3rem' }}
+                        onChange={e => handleInputChange(fieldKey, e.target.value)}
+                      />
+                      <div className="absolute right-0 top-6">
+                        <VoiceButton fieldId={fieldKey} />
+                      </div>
+                    </div>
+                  )}
                           {field.type === 'select' && <select style={getInternalInputStyle()} onChange={e => handleInputChange(fieldKey, e.target.value)}><option value="">Select...</option>{field.options?.map((o: string, i: number) => <option key={i} value={o}>{o}</option>)}</select>}
                           {field.type === 'radio' && <div className="space-y-2">{field.options?.map((o: string, i: number) => <label key={i} className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="radio" name={fieldKey} value={o} onChange={e => handleInputChange(fieldKey, e.target.value)} />{o}</label>)}</div>}
                           {field.type === 'checkbox' && (field.options?.length ? <div className="space-y-2">{field.options.map((o: string, i: number) => <label key={i} className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="checkbox" onChange={e => handleCheckboxChange(fieldKey, o, e.target.checked)} />{o}</label>)}</div> : <label className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="checkbox" onChange={e => handleInputChange(fieldKey, e.target.checked)} /> {field.placeholder || 'I agree'}</label>)}

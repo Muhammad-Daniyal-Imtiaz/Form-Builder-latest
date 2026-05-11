@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
-import { FormType, FieldType } from '../lib/form-schema';
+import { FormType, FieldType } from '@/lib/form-schema';
 
 interface SecureFormRendererProps {
   formData: FormType;

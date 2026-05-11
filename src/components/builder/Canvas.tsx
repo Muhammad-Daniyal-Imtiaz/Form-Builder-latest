@@ -447,7 +447,6 @@ export function Canvas() {
   const side = customStyles.layoutSide || 'left'
 
   const containerStyle = {
-    maxWidth: customStyles.containerWidth,
     margin: '0 auto',
     backgroundColor: customStyles.bodyBg,
     borderRadius: (isSplit || isSidebar) ? '0' : customStyles.borderRadius,

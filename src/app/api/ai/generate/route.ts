@@ -1,45 +1,68 @@
-import { NextResponse } from 'next/server';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from '@google/genai'
+import { NextResponse } from 'next/server'
 
-// Ensure this runs in the Node.js runtime (the Google SDK and env access are not Edge-safe).
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
-export async function POST(req: Request) {
-  try {
-    const { prompt, model, imageBase64, imageMimeType } = await req.json();
+type GenerateOptions = {
+  pageCount?: number
+  includeLogic?: boolean
+  logicPrompt?: string
+  styleDirection?: string
+  businessGoal?: string
+  tone?: string
+  targetAudience?: string
+  requiredFields?: string
+  submitButtonText?: string
+}
 
-    const apiKey = process.env.GEMINI_API_KEY;
+function buildSystemPrompt(options: GenerateOptions = {}) {
+  const pageCountInstruction =
+    options.pageCount && options.pageCount > 1
+      ? `Create exactly ${options.pageCount} pages using pageIndex values from 0 to ${options.pageCount - 1}.`
+      : 'Use one page unless the request clearly needs multiple steps.'
 
-    if (!apiKey) {
-      console.error('GEMINI_API_KEY is missing from process.env');
-      return NextResponse.json({ 
-        error: 'API Key missing. Please ensure GEMINI_API_KEY is set in Cloudflare environment variables and redeploy your app.' 
-      }, { status: 500 });
-    }
+  const logicInstruction = options.includeLogic
+    ? `Add conditional logic when useful. Use logicRules on source fields. Each rule must include condition, value, action, and targetId. Target IDs must match real field IDs. Extra logic request: ${options.logicPrompt || 'Use sensible show/hide branching.'}`
+    : 'Do not add conditional logic unless the user explicitly asks for it.'
 
-    const ai = new GoogleGenAI({ apiKey });
+  return `You are a senior product designer and form automation architect for a production SaaS form builder.
+Generate a single valid JSON object that can be imported directly into the app. Return only JSON.
 
-    // Default to 31B if an image is provided since it's the most capable for vision, otherwise default to 26B
-    const selectedModel = model || (imageBase64 ? "gemma-4-31b-it" : "gemma-4-26b-a4b-it");
+Priorities:
+- Create forms that are concise, conversion-friendly, accessible, and ready for real users.
+- Infer missing details intelligently, but never invent unnecessary fields.
+- Use stable snake_case field IDs that are human readable, unique, and match logic targetId references.
+- Preserve file upload fields as type "file" or "multifile"; never downgrade them.
+- Use pageIndex for multi-page flows. ${pageCountInstruction}
+- ${logicInstruction}
+- If an image is provided, extract labels, field types, order, intent, required markers, and grouping.
+- If text and image conflict, prefer explicit text instructions.
 
-    const systemPrompt = `You are an AI Form Generator. Your task is to generate a valid JSON structure for a form based on the user's prompt and/or the provided image.
-If an image is provided, extract the form fields, labels, structure, and intent to build a digital version of that form.
-Do not wrap the JSON in markdown code blocks, just return the raw JSON object.
-
-SCHEMA:
+Output schema:
 {
   "name": "string",
   "description": "string",
-  "logo_url": "image URL (optional)",
-  "cover_image_url": "banner image URL (optional)",
+  "logo_url": "",
+  "cover_image_url": "",
   "fields": [
     {
+      "id": "stable_snake_case_id",
       "label": "string",
-      "type": "text|email|number|textarea|select|multiselect|radio|checkbox|rating|file",
-      "required": true|false,
-      "placeholder": "string (optional)",
-      "options": ["array of strings - required for select/multiselect/radio/checkbox"]
+      "type": "text|email|number|textarea|select|multiselect|radio|checkbox|rating|file|multifile",
+      "required": true,
+      "placeholder": "string",
+      "options": ["required for select, multiselect, radio, checkbox groups"],
+      "pageIndex": 0,
+      "logicRules": [
+        {
+          "id": "stable_rule_id",
+          "condition": "equals|not_equals|contains",
+          "value": "answer value",
+          "action": "show|hide|jump_to",
+          "targetId": "target_field_id"
+        }
+      ]
     }
   ],
   "customStyles": {
@@ -52,117 +75,118 @@ SCHEMA:
     "inputBg": "#HEX",
     "inputBorderColor": "#HEX",
     "pageBgColor": "#HEX",
+    "buttonText": "#HEX",
     "layout": "centered|split|sidebar",
     "layoutSide": "left|right",
-    "borderRadius": 0-64,
-    "containerWidth": 320-1200,
-    "fontFamily": "Inter|Roboto|Outfit|Space Grotesk|DM Sans|Manrope|Playfair Display",
-    "formScale": 0.5-1.5
+    "borderRadius": 0,
+    "containerWidth": 320,
+    "containerPadding": 40,
+    "fontFamily": "Inter|Roboto|Outfit|Space Grotesk|DM Sans|Playfair Display|Plus Jakarta Sans",
+    "formScale": 1,
+    "boxShadow": "CSS shadow string"
   },
   "settings": {
     "submitButtonText": "string",
     "thankYouHeadline": "string",
-    "thankYouMessage": "string"
+    "thankYouMessage": "string",
+    "redirectUrl": ""
   }
 }
 
-Respond ONLY with the JSON object, nothing else.`;
+Design direction:
+- Style direction: ${options.styleDirection || 'modern premium SaaS'}
+- Business goal: ${options.businessGoal || 'collect accurate submissions with low friction'}
+- Tone: ${options.tone || 'clear, professional, helpful'}
+- Audience: ${options.targetAudience || 'general users'}
+- Required fields guidance: ${options.requiredFields || 'mark fields required when business-critical'}
+- Submit button: ${options.submitButtonText || 'choose a specific action label'}
 
-    const config: any = {
-      systemInstruction: systemPrompt,
-      responseMimeType: "application/json",
-    };
+Validation rules:
+- Include 1 to 100 fields.
+- Use pageIndex integers starting at 0.
+- Use only hex colors for color tokens.
+- Keep descriptions under 1000 characters.
+- Keep placeholders practical and short.
+- For checkbox with multiple options, include options. For a single consent checkbox, options may be omitted.
+- Return raw JSON only.`
+}
 
-    // The gemma-4-26b-a4b-it model requires thinking to be explicitly enabled
-    if (selectedModel === 'gemma-4-26b-a4b-it') {
-      config.thinkingConfig = {
-        thinkingLevel: ThinkingLevel.HIGH
-      };
+function parseGeminiJson(text: string) {
+  let jsonString = text.trim()
+  if (jsonString.startsWith('```')) {
+    jsonString = jsonString.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '')
+  }
+  return JSON.parse(jsonString)
+}
+
+export async function POST(req: Request) {
+  try {
+    const {
+      prompt,
+      model,
+      imageBase64,
+      imageMimeType,
+      options,
+    } = await req.json()
+
+    const apiKey = process.env.GEMINI_API_KEY
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'GEMINI_API_KEY is missing. Add it to .env.local and restart the dev server.' },
+        { status: 500 }
+      )
     }
 
-    const requestContents: any[] = [];
+    const requestContents: any[] = []
     if (imageBase64 && imageMimeType) {
       requestContents.push({
         inlineData: {
           data: imageBase64,
-          mimeType: imageMimeType
-        }
-      });
+          mimeType: imageMimeType,
+        },
+      })
     }
 
-    if (prompt) {
-      requestContents.push(prompt);
+    if (prompt?.trim()) {
+      requestContents.push(prompt.trim())
     }
 
     if (requestContents.length === 0) {
-      return NextResponse.json({ error: 'Either a prompt or an image is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Either a prompt or an image is required' }, { status: 400 })
+    }
+
+    const selectedModel = model || (imageBase64 ? 'gemma-4-31b-it' : 'gemma-4-26b-a4b-it')
+    const ai = new GoogleGenAI({ apiKey })
+    const config: any = {
+      systemInstruction: buildSystemPrompt(options || {}),
+      responseMimeType: 'application/json',
+    }
+
+    if (selectedModel === 'gemma-4-26b-a4b-it') {
+      config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH }
     }
 
     const response = await ai.models.generateContent({
       model: selectedModel,
       contents: requestContents,
-      config
-    });
+      config,
+    })
 
-    let jsonString = response.text || "{}";
-    jsonString = jsonString.trim();
-    if (jsonString.startsWith('```')) {
-      jsonString = jsonString.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '');
-    }
-    
-    let generatedForm;
     try {
-      generatedForm = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
-      
-      // Transform to match FormSchema exactly
-      const finalForm: any = {
-        title: generatedForm.title || generatedForm.name || "AI Generated Form",
-        description: generatedForm.description || "",
-        fields: []
-      };
-
-      // Ensure every field has an ID and a supported type
-      if (Array.isArray(generatedForm.fields)) {
-        finalForm.fields = generatedForm.fields.map((field: any, index: number) => {
-          // Fallback 'file' to 'text' as 'file' is not in FormSchema
-          let type = field.type || 'text';
-          if (!['text', 'email', 'number', 'select', 'checkbox', 'radio', 'textarea'].includes(type)) {
-            type = 'text'; 
-          }
-          
-          return {
-            ...field,
-            id: field.id || `field_${Date.now()}_${index}`,
-            type: type
-          };
-        });
-      }
-
-      // Serialize styles and settings into description if they exist
-      let descPayload = finalForm.description;
-      if (generatedForm.customStyles) {
-        descPayload += `|||STYLES:${JSON.stringify(generatedForm.customStyles)}`;
-      }
-      if (generatedForm.settings) {
-        descPayload += `|||SETTINGS:${JSON.stringify(generatedForm.settings)}`;
-      }
-      finalForm.description = descPayload;
-
-      generatedForm = finalForm;
-      
-    } catch (parseError) {
-      console.error("Failed to parse JSON response:", jsonString);
-      return NextResponse.json({ error: "AI returned invalid JSON structure. Please try again." }, { status: 500 });
+      return NextResponse.json(parseGeminiJson(response.text || '{}'))
+    } catch {
+      console.error('Failed to parse Gemini JSON response:', response.text)
+      return NextResponse.json(
+        { error: 'AI returned invalid JSON. Please try again with a clearer prompt.' },
+        { status: 500 }
+      )
     }
-
-    return NextResponse.json(generatedForm);
   } catch (error: any) {
-    console.error('AI Generation error:', error);
-    const message =
-      typeof error?.message === 'string' && error.message.length > 0
-        ? error.message
-        : 'Internal Server Error';
-
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('AI Generation error:', error)
+    return NextResponse.json(
+      { error: error.message || 'AI generation failed' },
+      { status: 500 }
+    )
   }
 }

@@ -15,7 +15,7 @@ export function FieldSettingsPanel() {
   } = useBuilder()
   const { currentTheme } = useTheme()
 
-  const activeField = fields.find(f => f.id === activeFieldId)
+  const activeField = fields.find(f => f.id === activeFieldId)!
 
   const addLogicRule = () => {
     if (!activeField) return;
@@ -43,15 +43,19 @@ export function FieldSettingsPanel() {
     });
   };
 
+  if (activeFieldId !== 'header' && !activeField) {
+    return null
+  }
+
   return (
     <AnimatePresence>
-      {(activeField || activeFieldId === 'header') && (
+      {activeFieldId && (
         <motion.aside
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
           className="w-80 border-l h-[calc(100vh-56px)] sticky top-14 shadow-2xl z-20 flex flex-col shrink-0 transition-colors duration-500"
-          style={{ backgroundColor: `${currentTheme.bg}cc`, borderColor: currentTheme.border, backdropBlur: '40px' }}
+          style={{ backgroundColor: `${currentTheme.bg}cc`, borderColor: currentTheme.border, backdropFilter: 'blur(40px)' }}
         >
           <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: currentTheme.border }}>
             <div className="flex items-center gap-2 font-bold" style={{ color: currentTheme.primary }}>
