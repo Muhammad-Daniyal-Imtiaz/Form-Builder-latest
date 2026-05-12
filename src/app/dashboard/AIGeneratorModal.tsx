@@ -170,7 +170,17 @@ export default function AIGeneratorModal() {
         }),
       })
 
-      const data = await res.json()
+      const rawAiResponse = await res.text()
+      let data: any
+      try {
+        data = rawAiResponse ? JSON.parse(rawAiResponse) : {}
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'AI returned an unreadable response. Please try again.'
+            : `AI service returned ${res.status}. Check Cloudflare Function logs for /api/ai/generate.`
+        )
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to generate form')
 
       const createRes = await fetch('/api/import-form', {
@@ -179,7 +189,17 @@ export default function AIGeneratorModal() {
         body: JSON.stringify({ jsonString: JSON.stringify(data) }),
       })
 
-      const createData = await createRes.json()
+      const rawCreateResponse = await createRes.text()
+      let createData: any
+      try {
+        createData = rawCreateResponse ? JSON.parse(rawCreateResponse) : {}
+      } catch {
+        throw new Error(
+          createRes.ok
+            ? 'The generated form was saved but the response could not be read.'
+            : `Form import failed with status ${createRes.status}.`
+        )
+      }
       if (!createRes.ok) {
         const details = Array.isArray(createData.details)
           ? createData.details.map((d: any) => `${d.path?.join('.')}: ${d.message}`).join(', ')

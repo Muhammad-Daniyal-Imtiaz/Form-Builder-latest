@@ -1,4 +1,3 @@
-import { GoogleGenAI, ThinkingLevel } from '@google/genai'
 import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -119,6 +118,24 @@ function parseGeminiJson(text: string) {
   return JSON.parse(jsonString)
 }
 
+function resolveGeminiModel(model: string | undefined, hasImage: boolean) {
+  if (model === 'gemini-2.5-pro' || model === 'gemini-2.5-flash') return model
+
+  // The UI used older marketing labels for "fast" and "most capable".
+  // Use Gemini API model IDs that work reliably in Cloudflare Workers.
+  if (model === 'gemma-4-31b-it') return 'gemini-2.5-pro'
+  if (model === 'gemma-4-26b-a4b-it') return 'gemini-2.5-flash'
+
+  return hasImage ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
+}
+
+function getGeminiText(data: any) {
+  return data?.candidates?.[0]?.content?.parts
+    ?.map((part: any) => part.text || '')
+    .join('')
+    .trim()
+}
+
 export async function POST(req: Request) {
   try {
     const {
@@ -138,45 +155,82 @@ export async function POST(req: Request) {
       )
     }
 
-    const requestContents: any[] = []
+    const parts: any[] = []
     if (imageBase64 && imageMimeType) {
-      requestContents.push({
-        inlineData: {
+      parts.push({
+        inline_data: {
           data: imageBase64,
-          mimeType: imageMimeType,
+          mime_type: imageMimeType,
         },
       })
     }
 
     if (prompt?.trim()) {
-      requestContents.push(prompt.trim())
+      parts.push({ text: prompt.trim() })
     }
 
-    if (requestContents.length === 0) {
+    if (parts.length === 0) {
       return NextResponse.json({ error: 'Either a prompt or an image is required' }, { status: 400 })
     }
 
-    const selectedModel = model || (imageBase64 ? 'gemma-4-31b-it' : 'gemma-4-26b-a4b-it')
-    const ai = new GoogleGenAI({ apiKey })
-    const config: any = {
-      systemInstruction: buildSystemPrompt(options || {}),
-      responseMimeType: 'application/json',
+    const selectedModel = resolveGeminiModel(model, Boolean(imageBase64))
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: buildSystemPrompt(options || {}) }],
+          },
+          contents: [
+            {
+              role: 'user',
+              parts,
+            },
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.35,
+            topP: 0.9,
+          },
+        }),
+      }
+    )
+
+    const responseText = await geminiResponse.text()
+    let responseData: any = null
+    try {
+      responseData = responseText ? JSON.parse(responseText) : null
+    } catch {
+      responseData = null
     }
 
-    if (selectedModel === 'gemma-4-26b-a4b-it') {
-      config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH }
+    if (!geminiResponse.ok) {
+      const message =
+        responseData?.error?.message ||
+        responseText ||
+        `Gemini request failed with status ${geminiResponse.status}`
+      console.error('Gemini API error:', message)
+      return NextResponse.json({ error: message }, { status: geminiResponse.status })
     }
 
-    const response = await ai.models.generateContent({
-      model: selectedModel,
-      contents: requestContents,
-      config,
-    })
+    const generatedText = getGeminiText(responseData)
+    if (!generatedText) {
+      console.error('Gemini returned no text:', responseData)
+      return NextResponse.json(
+        { error: 'AI returned an empty response. Please try again.' },
+        { status: 500 }
+      )
+    }
 
     try {
-      return NextResponse.json(parseGeminiJson(response.text || '{}'))
+      return NextResponse.json(parseGeminiJson(generatedText))
     } catch {
-      console.error('Failed to parse Gemini JSON response:', response.text)
+      console.error('Failed to parse Gemini JSON response:', generatedText)
       return NextResponse.json(
         { error: 'AI returned invalid JSON. Please try again with a clearer prompt.' },
         { status: 500 }
