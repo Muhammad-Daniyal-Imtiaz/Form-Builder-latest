@@ -498,7 +498,7 @@ export default function PublicForm({
   const side = cs.layoutSide || 'left'
 
   // --- RENDER FORM COMPONENT ---
-  const FormContent = ({ isInsideFrame = false, forceMobileLayout = false }: { isInsideFrame?: boolean, forceMobileLayout?: boolean }) => {
+  const renderFormContent = ({ isInsideFrame = false, forceMobileLayout = false }: { isInsideFrame?: boolean, forceMobileLayout?: boolean } = {}) => {
     const rowClass = forceMobileLayout ? 'flex-col' : 'md:flex-row flex-col'
     const leftWidthClass = forceMobileLayout ? 'w-full' : (isSplit ? 'md:w-1/2 w-full' : 'md:w-[320px] md:shrink-0 w-full')
     const rightAlignClass = forceMobileLayout ? 'items-center' : (isSplit || isSidebar ? 'md:justify-start items-center' : 'items-center')
@@ -632,7 +632,7 @@ export default function PublicForm({
   }
 
   // --- DEVICE FRAME COMPONENT ---
-  const DeviceFrame = ({ device, children }: { device: any, children: React.ReactNode }) => {
+  const renderDeviceFrame = (device: any, children: React.ReactNode) => {
     const isMobile = device.width < 500;
     const SCALE = isMobile ? 0.8 : 0.65;
     
@@ -658,7 +658,7 @@ export default function PublicForm({
     )
   }
 
-  if (!isPreview) return <FormContent />
+  if (!isPreview) return renderFormContent()
 
   return (
     <div className={cn(
@@ -740,17 +740,19 @@ export default function PublicForm({
         activeView === 'desktop' ? "pt-0 w-full" : "items-center justify-center pt-28 pb-16"
       )}>
         {activeView === 'desktop' && (
-           <FormContent />
+           renderFormContent()
         )}
         {activeView === 'tablet' && (
-           <DeviceFrame device={DEVICES.tablet.find(d => d.id === activeTabletId)}>
-             <FormContent isInsideFrame forceMobileLayout />
-           </DeviceFrame>
+           renderDeviceFrame(
+             DEVICES.tablet.find(d => d.id === activeTabletId),
+             renderFormContent({ isInsideFrame: true, forceMobileLayout: true })
+           )
         )}
         {activeView === 'mobile' && (
-           <DeviceFrame device={DEVICES.mobile.find(d => d.id === activeMobileId)}>
-             <FormContent isInsideFrame forceMobileLayout />
-           </DeviceFrame>
+           renderDeviceFrame(
+             DEVICES.mobile.find(d => d.id === activeMobileId),
+             renderFormContent({ isInsideFrame: true, forceMobileLayout: true })
+           )
         )}
       </div>
       
