@@ -5,13 +5,14 @@ import { BuilderProvider } from '@/components/builder/BuilderContext'
 import { Sidebar } from '@/components/builder/Sidebar'
 import { Canvas } from '@/components/builder/Canvas'
 import { FieldSettingsPanel } from '@/components/builder/FieldSettingsPanel'
-import { ArrowLeft, Save, Eye, Loader2, Globe, FileText } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useBuilder } from '@/components/builder/BuilderContext'
 import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/utils/cn'
 
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { AIFormEditorModal } from '@/components/builder/AIFormEditorModal'
 
 function BuilderHeader() {
   const { form, saving, saved, save, loading, formId, updateFormDetails } = useBuilder()
@@ -49,6 +50,8 @@ function BuilderHeader() {
       </div>
 
       <div className="flex items-center gap-3">
+        <AIFormEditorModal />
+
         <button
           onClick={() => updateFormDetails({ published: !form?.published })}
           className={cn(

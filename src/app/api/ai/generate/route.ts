@@ -7,6 +7,7 @@ type GenerateOptions = {
   pageCount?: number
   includeLogic?: boolean
   logicPrompt?: string
+  pagePlan?: string
   styleDirection?: string
   businessGoal?: string
   tone?: string
@@ -99,10 +100,12 @@ Design direction:
 - Audience: ${options.targetAudience || 'general users'}
 - Required fields guidance: ${options.requiredFields || 'mark fields required when business-critical'}
 - Submit button: ${options.submitButtonText || 'choose a specific action label'}
+- Page field plan: ${options.pagePlan || 'No explicit page-by-page field plan provided.'}
 
 Validation rules:
 - Include 1 to 100 fields.
 - Use pageIndex integers starting at 0.
+- When a page field plan is provided, place those fields on the requested pageIndex values.
 - Use only hex colors for color tokens.
 - Keep descriptions under 1000 characters.
 - Keep placeholders practical and short.

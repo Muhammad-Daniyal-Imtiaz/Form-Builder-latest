@@ -46,6 +46,7 @@ export default function AIGeneratorModal() {
   const [model, setModel] = useState('gemma-4-26b-a4b-it')
   const [imagePreview, setImagePreview] = useState('')
   const [pageCount, setPageCount] = useState(1)
+  const [pageFieldPlans, setPageFieldPlans] = useState<string[]>([''])
   const [includeLogic, setIncludeLogic] = useState(false)
   const [styleDirection, setStyleDirection] = useState('minimal premium SaaS')
   const [businessGoal, setBusinessGoal] = useState('')
@@ -59,6 +60,33 @@ export default function AIGeneratorModal() {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const router = useRouter()
   const { currentTheme } = useTheme()
+
+  const fieldStyle: React.CSSProperties = {
+    backgroundColor: currentTheme.bg,
+    borderColor: currentTheme.border,
+    color: currentTheme.text,
+  }
+
+  const updatePageCount = (value: number) => {
+    const nextCount = Math.min(8, Math.max(1, Number.isFinite(value) ? value : 1))
+    setPageCount(nextCount)
+    setPageFieldPlans((prev) => Array.from({ length: nextCount }, (_, index) => prev[index] || ''))
+  }
+
+  const updatePageFieldPlan = (index: number, value: string) => {
+    setPageFieldPlans((prev) => {
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }
+
+  const buildPagePlan = () => {
+    return pageFieldPlans
+      .map((value, index) => value.trim() && `Page ${index + 1}: ${value.trim()}`)
+      .filter(Boolean)
+      .join('\n')
+  }
 
   const stopListening = () => {
     recognitionRef.current?.stop()
@@ -122,6 +150,7 @@ export default function AIGeneratorModal() {
       requiredFields && `Required fields guidance: ${requiredFields}`,
       includeLogic && logicPrompt && `Conditional logic requirements: ${logicPrompt}`,
       pageCount > 1 && `Use exactly ${pageCount} pages.`,
+      pageCount > 1 && buildPagePlan() && `Page field plan:\n${buildPagePlan()}`,
       submitButtonText && `Submit button text: ${submitButtonText}`,
     ].filter(Boolean)
 
@@ -161,6 +190,7 @@ export default function AIGeneratorModal() {
             pageCount,
             includeLogic,
             logicPrompt,
+            pagePlan: buildPagePlan(),
             styleDirection,
             businessGoal,
             targetAudience,
@@ -305,8 +335,8 @@ export default function AIGeneratorModal() {
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       placeholder="Example: Create a minimalist job application form with Full Name, Email Address, and CV Upload. Use a split layout, dark blue accent, and Inter typography."
-                      className="w-full h-36 p-4 rounded-2xl bg-gray-50 border-2 outline-none transition-colors text-sm font-medium resize-none"
-                      style={{ borderColor: prompt ? currentTheme.border : 'transparent', color: currentTheme.text }}
+                      className="w-full h-36 p-4 rounded-2xl border-2 outline-none transition-colors text-sm font-medium resize-none placeholder:opacity-60"
+                      style={fieldStyle}
                       disabled={loading}
                     />
                   </div>
@@ -323,8 +353,8 @@ export default function AIGeneratorModal() {
                       value={logicPrompt}
                       onChange={(e) => { setLogicPrompt(e.target.value); setIncludeLogic(Boolean(e.target.value.trim())) }}
                       placeholder="Example: If employment type equals Freelancer, show Portfolio URL. If role contains Engineer, show GitHub Profile."
-                      className="w-full h-24 p-4 rounded-2xl bg-gray-50 border-2 outline-none transition-colors text-sm font-medium resize-none"
-                      style={{ borderColor: includeLogic ? currentTheme.border : 'transparent', color: currentTheme.text }}
+                      className="w-full h-24 p-4 rounded-2xl border-2 outline-none transition-colors text-sm font-medium resize-none placeholder:opacity-60"
+                      style={fieldStyle}
                       disabled={loading}
                     />
                   </div>
@@ -381,28 +411,53 @@ export default function AIGeneratorModal() {
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-2xl border" style={{ borderColor: currentTheme.border, backgroundColor: `${currentTheme.bg}55` }}>
                   <label className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Pages</span>
-                    <input type="number" min={1} max={8} value={pageCount} onChange={(e) => setPageCount(Number(e.target.value))} className="w-full rounded-xl border px-3 py-2 text-sm" />
+                    <input type="number" min={1} max={8} value={pageCount} onChange={(e) => updatePageCount(Number(e.target.value))} className="w-full rounded-xl border px-3 py-2 text-sm placeholder:opacity-60" style={fieldStyle} />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Style</span>
-                    <input value={styleDirection} onChange={(e) => setStyleDirection(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" />
+                    <input value={styleDirection} onChange={(e) => setStyleDirection(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm placeholder:opacity-60" style={fieldStyle} />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Submit Text</span>
-                    <input value={submitButtonText} onChange={(e) => setSubmitButtonText(e.target.value)} placeholder="Apply Now" className="w-full rounded-xl border px-3 py-2 text-sm" />
+                    <input value={submitButtonText} onChange={(e) => setSubmitButtonText(e.target.value)} placeholder="Apply Now" className="w-full rounded-xl border px-3 py-2 text-sm placeholder:opacity-60" style={fieldStyle} />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Business Goal</span>
-                    <input value={businessGoal} onChange={(e) => setBusinessGoal(e.target.value)} placeholder="Qualify candidates" className="w-full rounded-xl border px-3 py-2 text-sm" />
+                    <input value={businessGoal} onChange={(e) => setBusinessGoal(e.target.value)} placeholder="Qualify candidates" className="w-full rounded-xl border px-3 py-2 text-sm placeholder:opacity-60" style={fieldStyle} />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Audience</span>
-                    <input value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Job applicants" className="w-full rounded-xl border px-3 py-2 text-sm" />
+                    <input value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Job applicants" className="w-full rounded-xl border px-3 py-2 text-sm placeholder:opacity-60" style={fieldStyle} />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Required Fields</span>
-                    <input value={requiredFields} onChange={(e) => setRequiredFields(e.target.value)} placeholder="Name, email, CV" className="w-full rounded-xl border px-3 py-2 text-sm" />
+                    <input value={requiredFields} onChange={(e) => setRequiredFields(e.target.value)} placeholder="Name, email, CV" className="w-full rounded-xl border px-3 py-2 text-sm placeholder:opacity-60" style={fieldStyle} />
                   </label>
+                  {pageCount > 1 && (
+                    <div className="md:col-span-2 lg:col-span-3 space-y-3 rounded-2xl border p-4" style={{ borderColor: currentTheme.border, backgroundColor: currentTheme.card }}>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest" style={{ color: currentTheme.text }}>Page Field Plan</h4>
+                        <p className="text-xs mt-1" style={{ color: currentTheme.textMuted }}>
+                          Tell the AI which fields should appear on each page.
+                        </p>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {Array.from({ length: pageCount }).map((_, index) => (
+                          <label key={index} className="space-y-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Page {index + 1} Fields</span>
+                            <textarea
+                              value={pageFieldPlans[index] || ''}
+                              onChange={(e) => updatePageFieldPlan(index, e.target.value)}
+                              placeholder={index === 0 ? 'Example: Full Name, Email, Phone' : 'Example: CV Upload, Experience, Portfolio URL'}
+                              className="w-full min-h-20 rounded-xl border px-3 py-2 text-sm resize-y placeholder:opacity-60"
+                              style={fieldStyle}
+                              disabled={loading}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <label className="md:col-span-2 lg:col-span-3 flex items-center gap-3 text-sm font-bold" style={{ color: currentTheme.text }}>
                     <input type="checkbox" checked={includeLogic} onChange={(e) => setIncludeLogic(e.target.checked)} style={{ accentColor: currentTheme.primary }} />
                     Generate conditional logic rules
