@@ -136,6 +136,38 @@ async function decrypt(text: string): Promise<string> {
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const DEAD_LETTER_QUEUE = "form_submissions_dead_letter";
+
+async function redisCommand(redisUrl: string, authHeader: Record<string, string>, command: string, ...args: string[]) {
+  const path = [command, ...args.map((arg) => encodeURIComponent(arg))].join("/");
+  const res = await fetch(`${redisUrl}/${path}`, {
+    method: "POST",
+    headers: authHeader,
+  });
+  return await res.json().catch(() => ({}));
+}
+
+async function pushDeadLetter(
+  redisUrl: string,
+  authHeader: Record<string, string>,
+  item: any,
+  error: string,
+) {
+  const payload = {
+    ...item,
+    error,
+    failed_at: Date.now(),
+    retry_count: Number(item?.retry_count || 0) + 1,
+  };
+
+  await redisCommand(redisUrl, authHeader, "lpush", DEAD_LETTER_QUEUE, JSON.stringify(payload)).catch((err) => {
+    console.error("[Worker] Failed to push dead letter:", err.message);
+  });
+
+  if (item?.msg_id) {
+    await redisCommand(redisUrl, authHeader, "hset", `msg:${item.msg_id}`, "status", "failed", "error", error).catch(() => {});
+  }
+}
 
 Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
@@ -170,10 +202,18 @@ Deno.serve(async (req) => {
           try {
             const item = typeof moveData.result === 'string' ? JSON.parse(moveData.result) : moveData.result;
             if (item && item.msg_id) {
+                const statusRes = await redisCommand(redisUrl, authHeader, "hget", `msg:${item.msg_id}`, "status").catch(() => ({}));
+                if (statusRes.result === "completed") {
+                  console.warn(`[Worker] Skipping already completed msg:${item.msg_id}`);
+                  continue;
+                }
                 batch.push(item);
+            } else {
+                await pushDeadLetter(redisUrl, authHeader, { raw: moveData.result }, "Missing msg_id");
             }
           } catch (e) {
             console.error("[Worker] Failed to parse item:", moveData.result);
+            await pushDeadLetter(redisUrl, authHeader, { raw: moveData.result }, "Invalid queue payload");
           }
         } else {
           break; // Queue empty
@@ -202,6 +242,7 @@ Deno.serve(async (req) => {
             if (!vData.success) {
               console.warn(`[Worker] Turnstile failed for msg:${item.msg_id}. Errors: ${JSON.stringify(vData['error-codes'])}`);
               await fetch(`${redisUrl}/hset/${msgKey}/status/rejected`, { headers: authHeader }).catch(() => {});
+              await pushDeadLetter(redisUrl, authHeader, item, `Turnstile failed: ${JSON.stringify(vData['error-codes'] || [])}`);
               return null;
             }
           } catch (e) { 
@@ -230,13 +271,16 @@ Deno.serve(async (req) => {
 
         if (bulkSubmitError) {
             console.error("[Worker] Bulk insert error:", bulkSubmitError.message);
-            // Move items back or handle error? For now, we throw and let the processingList be cleaned up or persisted.
-            throw bulkSubmitError;
+            await Promise.all(validItems.map((item) => pushDeadLetter(redisUrl, authHeader, item, `Bulk insert failed: ${bulkSubmitError.message}`)));
+            await fetch(`${redisUrl}/del/${encodeURIComponent(processingList)}`, { headers: authHeader }).catch(() => {});
+            continue;
         }
 
         if (!insertedSubmissions || insertedSubmissions.length === 0) {
             console.error("[Worker] Insert returned no data");
-            throw new Error("Bulk insert failed to return rows");
+            await Promise.all(validItems.map((item) => pushDeadLetter(redisUrl, authHeader, item, "Bulk insert returned no rows")));
+            await fetch(`${redisUrl}/del/${encodeURIComponent(processingList)}`, { headers: authHeader }).catch(() => {});
+            continue;
         }
 
         // STAGE 2: Bulk Insert Files
@@ -259,7 +303,10 @@ Deno.serve(async (req) => {
         
         if (fileRecords.length > 0) {
             const { error: fileError } = await supabase.from("files").insert(fileRecords);
-            if (fileError) console.error("[Worker] File insert error:", fileError.message);
+            if (fileError) {
+              console.error("[Worker] File insert error:", fileError.message);
+              await Promise.all(validItems.map((item) => pushDeadLetter(redisUrl, authHeader, item, `File insert failed after submission insert: ${fileError.message}`)));
+            }
         }
 
         // STAGE 3: Integrations & Completion

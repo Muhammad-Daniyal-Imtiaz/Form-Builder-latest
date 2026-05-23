@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-
+import { verifyTurnstile } from '@/lib/turnstile'
+import { getAuthRateLimit } from '@/lib/upstash'
 import { ensureUserProfile } from '@/lib/user-profile'
 import { createAdminClient, createClient } from '@/utils/supabase/server'
 
@@ -9,6 +10,32 @@ export async function POST(request: Request) {
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
     const password = typeof body.password === 'string' ? body.password : ''
+    const captchaToken = typeof body.captchaToken === 'string' ? body.captchaToken : ''
+
+    const clientIp = request.headers.get('x-vercel-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     request.headers.get('cf-connecting-ip') || 
+                     'anonymous'
+    
+    const ratelimit = getAuthRateLimit()
+    if (ratelimit) {
+      const { success } = await ratelimit.limit(`auth:${clientIp}`)
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Too many signup attempts. Please try again later.' 
+        }, { status: 429 })
+      }
+    }
+
+    if (process.env.TURNSTILE_SECRET_KEY) {
+      if (!captchaToken) {
+        return NextResponse.json({ error: 'Security check required' }, { status: 400 })
+      }
+      const isValid = await verifyTurnstile(captchaToken)
+      if (!isValid) {
+        return NextResponse.json({ error: 'Security verification failed' }, { status: 400 })
+      }
+    }
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })

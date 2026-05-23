@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAIRateLimit } from '@/lib/upstash'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -141,6 +142,21 @@ function getGeminiText(data: any) {
 
 export async function POST(req: Request) {
   try {
+    const clientIp = req.headers.get('x-vercel-forwarded-for') || 
+                     req.headers.get('x-real-ip') || 
+                     req.headers.get('cf-connecting-ip') || 
+                     'anonymous'
+    
+    const ratelimit = getAIRateLimit()
+    if (ratelimit) {
+      const { success } = await ratelimit.limit(`ai:${clientIp}`)
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Too many AI requests. Please try again in 1 minute.' 
+        }, { status: 429 })
+      }
+    }
+
     const {
       prompt,
       model,
@@ -156,6 +172,14 @@ export async function POST(req: Request) {
         { error: 'GEMINI_API_KEY is missing. Add it to .env.local and restart the dev server.' },
         { status: 500 }
       )
+    }
+
+    if (typeof prompt === 'string' && prompt.length > 8000) {
+      return NextResponse.json({ error: 'Prompt is too long. Please keep it under 8,000 characters.' }, { status: 413 })
+    }
+
+    if (typeof imageBase64 === 'string' && imageBase64.length > 7_000_000) {
+      return NextResponse.json({ error: 'Image is too large. Please upload an image under about 5 MB.' }, { status: 413 })
     }
 
     const parts: any[] = []

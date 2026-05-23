@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getAIRateLimit } from '@/lib/upstash'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -80,6 +81,21 @@ Rules:
 
 export async function POST(req: Request) {
   try {
+    const clientIp = req.headers.get('x-vercel-forwarded-for') || 
+                     req.headers.get('x-real-ip') || 
+                     req.headers.get('cf-connecting-ip') || 
+                     'anonymous'
+    
+    const ratelimit = getAIRateLimit()
+    if (ratelimit) {
+      const { success } = await ratelimit.limit(`ai:${clientIp}`)
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Too many AI requests. Please try again in 1 minute.' 
+        }, { status: 429 })
+      }
+    }
+
     const { model, editPrompt, currentForm } = await req.json()
     const apiKey = process.env.GEMINI_API_KEY
 
@@ -91,8 +107,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tell AI what to change in the form.' }, { status: 400 })
     }
 
+    if (typeof editPrompt === 'string' && editPrompt.length > 5000) {
+      return NextResponse.json({ error: 'Edit request is too long. Please keep it under 5,000 characters.' }, { status: 413 })
+    }
+
     if (!currentForm) {
       return NextResponse.json({ error: 'Current form data is required.' }, { status: 400 })
+    }
+
+    const currentFormJson = JSON.stringify(currentForm)
+    if (currentFormJson.length > 60_000) {
+      return NextResponse.json({ error: 'This form is too large for one AI edit. Please edit a smaller section.' }, { status: 413 })
     }
 
     const selectedModel = resolveGeminiModel(model)
@@ -113,14 +138,7 @@ export async function POST(req: Request) {
               role: 'user',
               parts: [
                 {
-                  text: JSON.stringify(
-                    {
-                      editPrompt,
-                      currentForm,
-                    },
-                    null,
-                    2
-                  ),
+                  text: JSON.stringify({ editPrompt, currentForm }, null, 2),
                 },
               ],
             },

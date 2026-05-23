@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Layout, Mail, Lock, User, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
-import { cn } from '@/utils/cn'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { useTheme } from '@/components/ThemeProvider'
 
@@ -17,6 +17,8 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string>('')
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
@@ -33,7 +35,7 @@ export default function SignupPage() {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, captchaToken }),
       })
 
       const data = await response.json()
@@ -210,9 +212,20 @@ export default function SignupPage() {
               <p className="px-1 ml-1 text-[9px] font-bold uppercase tracking-widest" style={{ color: currentTheme.textMuted }}>Minimum 8 characters</p>
             </div>
 
+            {turnstileSiteKey && (
+              <Turnstile
+                siteKey={turnstileSiteKey}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken('')}
+                onError={() => setCaptchaToken('')}
+                options={{ theme: currentTheme.lightMode ? 'light' : 'dark' }}
+                className="mt-4"
+              />
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || Boolean(turnstileSiteKey && !captchaToken)}
               className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 group/btn shadow-lg"
               style={{ 
                 backgroundColor: currentTheme.primary, 

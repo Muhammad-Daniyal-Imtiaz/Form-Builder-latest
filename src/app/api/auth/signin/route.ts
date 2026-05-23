@@ -2,15 +2,43 @@ import { sanitizeRedirectPath } from '@/lib/auth-redirect'
 import { ensureUserProfile } from '@/lib/user-profile'
 import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+import { verifyTurnstile } from '@/lib/turnstile'
+import { getAuthRateLimit } from '@/lib/upstash'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
     const password = typeof body.password === 'string' ? body.password : ''
+    const captchaToken = typeof body.captchaToken === 'string' ? body.captchaToken : ''
     const redirectTo = sanitizeRedirectPath(
       typeof body.redirectTo === 'string' ? body.redirectTo : undefined
     )
+
+    const clientIp = request.headers.get('x-vercel-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     request.headers.get('cf-connecting-ip') || 
+                     'anonymous'
+    
+    const ratelimit = getAuthRateLimit()
+    if (ratelimit) {
+      const { success } = await ratelimit.limit(`auth:${clientIp}`)
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Too many authentication attempts. Please try again later.' 
+        }, { status: 429 })
+      }
+    }
+
+    if (process.env.TURNSTILE_SECRET_KEY) {
+      if (!captchaToken) {
+        return NextResponse.json({ error: 'Security check required' }, { status: 400 })
+      }
+      const isValid = await verifyTurnstile(captchaToken)
+      if (!isValid) {
+        return NextResponse.json({ error: 'Security verification failed' }, { status: 400 })
+      }
+    }
 
     if (!email || !password) {
       return NextResponse.json(
