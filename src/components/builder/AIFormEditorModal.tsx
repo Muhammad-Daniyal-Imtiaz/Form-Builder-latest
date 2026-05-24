@@ -52,7 +52,7 @@ export function AIFormEditorModal() {
   } = useBuilder()
   const { currentTheme } = useTheme()
   const [open, setOpen] = useState(false)
-  const [model, setModel] = useState('gemini-2.5-flash')
+  const [model, setModel] = useState('gemma-4-31b-it')
   const [editPrompt, setEditPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -166,20 +166,20 @@ export function AIFormEditorModal() {
             <div className="grid md:grid-cols-2 gap-4 mb-5">
               <button
                 type="button"
-                onClick={() => setModel('gemini-2.5-flash')}
+                onClick={() => setModel('gemma-4-26b-a4b-it')}
                 className="p-4 rounded-xl text-left border-2 transition-all"
-                style={{ borderColor: model === 'gemini-2.5-flash' ? currentTheme.primary : currentTheme.border, backgroundColor: model === 'gemini-2.5-flash' ? `${currentTheme.primary}12` : currentTheme.bg }}
+                style={{ borderColor: model === 'gemma-4-26b-a4b-it' ? currentTheme.primary : currentTheme.border, backgroundColor: model === 'gemma-4-26b-a4b-it' ? `${currentTheme.primary}12` : currentTheme.bg }}
               >
-                <span className="block text-sm font-black" style={{ color: currentTheme.text }}>Gemini 2.5 Flash</span>
-                <span className="block text-xs mt-1" style={{ color: currentTheme.textMuted }}>Fast, cost-effective edits</span>
+                <span className="block text-sm font-black" style={{ color: currentTheme.text }}>Fast Model</span>
+                <span className="block text-xs mt-1" style={{ color: currentTheme.textMuted }}>Best for simple field edits</span>
               </button>
               <button
                 type="button"
-                onClick={() => setModel('gemini-2.5-pro')}
+                onClick={() => setModel('gemma-4-31b-it')}
                 className="p-4 rounded-xl text-left border-2 transition-all"
-                style={{ borderColor: model === 'gemini-2.5-pro' ? currentTheme.primary : currentTheme.border, backgroundColor: model === 'gemini-2.5-pro' ? `${currentTheme.primary}12` : currentTheme.bg }}
+                style={{ borderColor: model === 'gemma-4-31b-it' ? currentTheme.primary : currentTheme.border, backgroundColor: model === 'gemma-4-31b-it' ? `${currentTheme.primary}12` : currentTheme.bg }}
               >
-                <span className="block text-sm font-black" style={{ color: currentTheme.text }}>Gemini 2.5 Pro</span>
+                <span className="block text-sm font-black" style={{ color: currentTheme.text }}>Most Capable Model</span>
                 <span className="block text-xs mt-1" style={{ color: currentTheme.textMuted }}>Best for design, logic, and multi-page edits</span>
               </button>
             </div>

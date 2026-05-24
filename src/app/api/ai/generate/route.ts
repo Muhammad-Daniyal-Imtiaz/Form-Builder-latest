@@ -123,14 +123,9 @@ function parseGeminiJson(text: string) {
 }
 
 function resolveGeminiModel(model: string | undefined, hasImage: boolean) {
-  if (model === 'gemini-2.5-pro' || model === 'gemini-2.5-flash') return model
+  if (model === 'gemma-4-31b-it' || model === 'gemma-4-26b-a4b-it') return model
 
-  // The UI used older marketing labels for "fast" and "most capable".
-  // Use Gemini API model IDs that work reliably in Cloudflare Workers.
-  if (model === 'gemma-4-31b-it') return 'gemini-2.5-pro'
-  if (model === 'gemma-4-26b-a4b-it') return 'gemini-2.5-flash'
-
-  return hasImage ? 'gemini-2.5-pro' : 'gemini-2.5-flash'
+  return hasImage ? 'gemma-4-31b-it' : 'gemma-4-26b-a4b-it'
 }
 
 function getGeminiText(data: any) {

@@ -13,9 +13,8 @@ function parseGeminiJson(text: string) {
 }
 
 function resolveGeminiModel(model: string | undefined) {
-  if (model === 'gemini-2.5-pro' || model === 'gemini-2.5-flash') return model
-  if (model === 'gemma-4-31b-it') return 'gemini-2.5-pro'
-  return 'gemini-2.5-flash'
+  if (model === 'gemma-4-31b-it' || model === 'gemma-4-26b-a4b-it') return model
+  return 'gemma-4-26b-a4b-it'
 }
 
 function getGeminiText(data: any) {

@@ -43,7 +43,7 @@ export default function AIGeneratorModal() {
   const [isOpen, setIsOpen] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [logicPrompt, setLogicPrompt] = useState('')
-  const [model, setModel] = useState('gemini-2.5-flash')
+  const [model, setModel] = useState('gemma-4-26b-a4b-it')
   const [imagePreview, setImagePreview] = useState('')
   const [pageCount, setPageCount] = useState(1)
   const [pageFieldPlans, setPageFieldPlans] = useState<string[]>([''])
@@ -135,7 +135,7 @@ export default function AIGeneratorModal() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setModel('gemini-2.5-pro')
+    setModel('gemma-4-31b-it')
     const reader = new FileReader()
     reader.onloadend = () => setImagePreview(reader.result as string)
     reader.readAsDataURL(file)
@@ -308,19 +308,19 @@ export default function AIGeneratorModal() {
               <div className="grid md:grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setModel('gemini-2.5-flash')}
-                  className={`p-4 rounded-xl text-left border-2 transition-all ${model === 'gemini-2.5-flash' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}`}
+                  onClick={() => setModel('gemma-4-26b-a4b-it')}
+                  className={`p-4 rounded-xl text-left border-2 transition-all ${model === 'gemma-4-26b-a4b-it' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}`}
                 >
-                  <span className="block text-sm font-black mb-1" style={{ color: currentTheme.text }}>Gemini 2.5 Flash</span>
-                  <span className="block text-[10px] font-medium" style={{ color: currentTheme.textMuted }}>Fast, cost-effective text-to-form generation</span>
+                  <span className="block text-sm font-black mb-1" style={{ color: currentTheme.text }}>Gemma 4 26B</span>
+                  <span className="block text-[10px] font-medium" style={{ color: currentTheme.textMuted }}>Fast text-to-form generation</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setModel('gemini-2.5-pro')}
-                  className={`p-4 rounded-xl text-left border-2 transition-all ${model === 'gemini-2.5-pro' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}`}
+                  onClick={() => setModel('gemma-4-31b-it')}
+                  className={`p-4 rounded-xl text-left border-2 transition-all ${model === 'gemma-4-31b-it' ? 'border-violet-600 bg-violet-50/50' : 'border-transparent bg-gray-50'}`}
                 >
-                  <span className="block text-sm font-black mb-1" style={{ color: currentTheme.text }}>Gemini 2.5 Pro</span>
-                  <span className="block text-[10px] font-medium" style={{ color: currentTheme.textMuted }}>Best for images, voice prompts, and complex logic</span>
+                  <span className="block text-sm font-black mb-1" style={{ color: currentTheme.text }}>Gemma 4 31B</span>
+                  <span className="block text-[10px] font-medium" style={{ color: currentTheme.textMuted }}>Best for images, voice prompts, and logic</span>
                 </button>
               </div>
 
@@ -387,12 +387,12 @@ export default function AIGeneratorModal() {
 
                   <button
                     type="button"
-                    onClick={() => { setModel('gemini-2.5-pro'); startListening('prompt') }}
+                    onClick={() => { setModel('gemma-4-31b-it'); startListening('prompt') }}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-black text-white bg-violet-600 hover:bg-violet-700 transition-colors"
                     disabled={loading}
                   >
                     <Mic className="w-4 h-4" />
-                    Voice to Form with Pro
+                    Voice to Form with 31B
                   </button>
                 </div>
               </div>
