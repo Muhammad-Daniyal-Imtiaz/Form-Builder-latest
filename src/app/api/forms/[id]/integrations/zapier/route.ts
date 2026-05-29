@@ -1,224 +1,109 @@
-import { createClient, createAdminClient } from '@/utils/supabase/server';
+import { db } from '@/db';
+import { forms, submissions, formFields } from '@/db/schema';
+import { getAuthUserId, AuthError } from '@/lib/auth';
+import { eq, and, asc, desc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { encrypt, decrypt } from '@/utils/encryption';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = (await params).id;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { id } = await params;
+    const userId = await getAuthUserId();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const [form] = await db
+      .select({ zapierWebhookUrl: forms.zapierWebhookUrl, zapierEnabled: forms.zapierEnabled })
+      .from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)));
 
-    const { data: form, error: formError } = await supabase
-      .from('forms')
-      .select('zapier_webhook_url, zapier_enabled')
-      .eq('id', id)
-      .single();
-
-    if (formError) throw formError;
-
-    return NextResponse.json({
-      webhookUrl: form?.zapier_webhook_url ? '********' : null,
-      isEnabled: form?.zapier_enabled
-    });
-  } catch (err) {
-    console.error('Zapier GET error:', err);
+    if (!form) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+    return NextResponse.json({ webhookUrl: form.zapierWebhookUrl ? '********' : null, isEnabled: form.zapierEnabled });
+  } catch (e) {
+    if (e instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = (await params).id;
+    const { id } = await params;
+    const userId = await getAuthUserId();
     const body = await request.json();
     const { action } = body;
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const [formOwner] = await db.select({ id: forms.id }).from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)));
+    if (!formOwner) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // UPDATE CONFIG
     if (action === 'update') {
       const { webhookUrl, enabled } = body;
-      const updateData: any = {
-          zapier_enabled: enabled 
-      };
-      if (webhookUrl && webhookUrl !== '********') {
-          updateData.zapier_webhook_url = await encrypt(webhookUrl);
+      const updateData: any = { zapierEnabled: enabled };
+      if (webhookUrl && webhookUrl !== '********') updateData.zapierWebhookUrl = await encrypt(webhookUrl);
+      await db.update(forms).set(updateData).where(eq(forms.id, id));
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'disconnect') {
+      await db.update(forms).set({ zapierWebhookUrl: null, zapierEnabled: false }).where(eq(forms.id, id));
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'sync-existing') {
+      const [form] = await db.select().from(forms).where(eq(forms.id, id));
+      if (!form?.zapierWebhookUrl) return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
+
+      const fields = await db.select({ id: formFields.id, label: formFields.label }).from(formFields).where(eq(formFields.formId, id)).orderBy(asc(formFields.order));
+      const unsyncedSubs = await db.select().from(submissions).where(and(eq(submissions.formId, id), eq(submissions.zapierSynced, false)));
+
+      if (!unsyncedSubs.length) return NextResponse.json({ success: true, count: 0, message: 'All data already synced!' });
+
+      const actualWebhookUrl = await decrypt(form.zapierWebhookUrl);
+      const results = await Promise.all(unsyncedSubs.map(async (sub) => {
+        const data = sub.data as Record<string, any>;
+        const labelData: Record<string, any> = {};
+        fields.forEach((f) => {
+          let val = data[f.id] || data[f.label] || '';
+          if (Array.isArray(val)) val = val.join(', ');
+          let key = f.label; let i = 1;
+          while (labelData[key]) key = `${f.label}_${++i}`;
+          labelData[key] = val;
+        });
+        try {
+          const res = await fetch(actualWebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submission_id: sub.id, form_id: id, submitted_at: sub.submittedAt, ...labelData }) });
+          return res.ok;
+        } catch { return false; }
+      }));
+
+      const successCount = results.filter(Boolean).length;
+      if (successCount > 0) {
+        const syncedIds = unsyncedSubs.filter((_, i) => results[i]).map((s) => s.id);
+        for (const sid of syncedIds) await db.update(submissions).set({ zapierSynced: true }).where(eq(submissions.id, sid));
       }
 
-      const { error } = await supabase
-        .from('forms')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) throw error;
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: successCount > 0, count: successCount, message: `Successfully sent ${successCount} entries to Zapier.` });
     }
 
-    // DISCONNECT
-    if (action === 'disconnect') {
-      const { error } = await supabase
-        .from('forms')
-        .update({ 
-          zapier_webhook_url: null, 
-          zapier_enabled: false 
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-      return NextResponse.json({ success: true });
-    }
-
-    // BULK SYNC
-    if (action === 'sync-existing') {
-        const admin = await createAdminClient();
-        const { data: form } = await admin
-          .from('forms')
-          .select('zapier_webhook_url, zapier_enabled, google_sheet_name')
-          .eq('id', id)
-          .single();
-  
-        if (!form?.zapier_webhook_url) {
-            return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
-        }
-
-        // Fetch fields to map IDs to labels
-        const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
-
-        // Get unsynced submissions
-        const { data: submissions } = await admin
-          .from('submissions')
-          .select('*')
-          .eq('form_id', id)
-          .eq('zapier_synced', false)
-          .order('submitted_at');
-
-        if (!submissions || submissions.length === 0) {
-            return NextResponse.json({ success: true, count: 0, message: 'All data already synced!' });
-        }
-
-        const results = await Promise.all(submissions.map(async (sub) => {
-            try {
-                // Map ID data to Label data
-                const labelData: Record<string, any> = {};
-                if (fields) {
-                    fields.forEach(f => {
-                        let val = sub.data[f.id] || sub.data[f.label] || '';
-                        if (Array.isArray(val)) val = val.join(', ');
-                        
-                        let key = f.label;
-                        let i = 1;
-                        while (labelData[key]) {
-                            key = `${f.label}_${++i}`;
-                        }
-                        labelData[key] = val;
-                    });
-                }
-
-                const actualWebhookUrl = await decrypt(form.zapier_webhook_url!);
-                const response = await fetch(actualWebhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        submission_id: sub.id,
-                        form_id: id,
-                        form_name: form.google_sheet_name || 'My Form',
-                        submitted_at: sub.submitted_at,
-                        ...labelData
-                    })
-                });
-                return response.ok;
-            } catch (err) {
-                console.error('Zapier sync failed for sub:', sub.id, err);
-                return false;
-            }
-        }));
-
-        const successCount = results.filter(Boolean).length;
-        
-        if (successCount > 0) {
-            const syncedIds = submissions.filter((_, i) => results[i]).map(s => s.id);
-            const admin = await createAdminClient();
-            await admin.from('submissions').update({ zapier_synced: true }).in('id', syncedIds);
-        }
-
-        return NextResponse.json({ 
-            success: successCount > 0, 
-            count: successCount,
-            message: `Successfully sent ${successCount} entries to Zapier.`
-        });
-    }
-    // RESET SYNC
     if (action === 'reset-sync') {
-        const admin = await createAdminClient();
-        const { error } = await admin
-          .from('submissions')
-          .update({ zapier_synced: false })
-          .eq('form_id', id);
-
-        if (error) throw error;
-        return NextResponse.json({ success: true, message: 'Sync status reset successfully.' });
+      const allSubs = await db.select({ id: submissions.id }).from(submissions).where(eq(submissions.formId, id));
+      for (const sub of allSubs) await db.update(submissions).set({ zapierSynced: false }).where(eq(submissions.id, sub.id));
+      return NextResponse.json({ success: true, message: 'Sync status reset successfully.' });
     }
 
-    // SEND TEST SAMPLE
     if (action === 'send-test') {
-        const admin = await createAdminClient();
-        const { data: form } = await admin
-          .from('forms')
-          .select('zapier_webhook_url, google_sheet_name')
-          .eq('id', id)
-          .single();
+      const [form] = await db.select({ zapierWebhookUrl: forms.zapierWebhookUrl, title: forms.title }).from(forms).where(eq(forms.id, id));
+      if (!form?.zapierWebhookUrl) return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
 
-        if (!form?.zapier_webhook_url) {
-            return NextResponse.json({ error: 'Webhook URL not configured' }, { status: 400 });
-        }
+      const fields = await db.select({ id: formFields.id, label: formFields.label }).from(formFields).where(eq(formFields.formId, id)).orderBy(asc(formFields.order));
+      const testData: Record<string, any> = {};
+      fields.forEach((f) => { testData[f.label] = `Sample ${f.label} data`; });
 
-        const { data: fields } = await admin.from('form_fields').select('id, label').eq('form_id', id).order('order');
-        
-        const testData: Record<string, any> = {};
-        if (fields) {
-            fields.forEach(f => {
-                testData[f.label] = `Sample ${f.label} data`;
-            });
-        }
-
-        const actualWebhookUrl = await decrypt(form.zapier_webhook_url);
-        const response = await fetch(actualWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                submission_id: 'test_sample_id',
-                form_id: id,
-                form_name: form.google_sheet_name || 'Test Form',
-                submitted_at: new Date().toISOString(),
-                is_test: true,
-                message: "The webhook is working perfectly!",
-                ...testData
-            })
-        });
-
-        if (!response.ok) {
-            return NextResponse.json({ error: 'Failed to send test to Zapier' }, { status: 500 });
-        }
-
-        return NextResponse.json({ success: true, message: 'Test sample sent to Zapier!' });
+      const actualUrl = await decrypt(form.zapierWebhookUrl);
+      const res = await fetch(actualUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submission_id: 'test_sample_id', form_id: id, form_name: form.title, submitted_at: new Date().toISOString(), is_test: true, message: 'The webhook is working perfectly!', ...testData }) });
+      if (!res.ok) return NextResponse.json({ error: 'Failed to send test to Zapier' }, { status: 500 });
+      return NextResponse.json({ success: true, message: 'Test sample sent to Zapier!' });
     }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (err) {
-    console.error('Zapier POST error:', err);
+  } catch (e) {
+    if (e instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.error('Zapier POST error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

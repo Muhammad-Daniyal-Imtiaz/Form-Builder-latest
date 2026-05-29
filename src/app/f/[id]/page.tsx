@@ -1,26 +1,17 @@
-import { createAdminClient } from '@/utils/supabase/server'
+import { db } from '@/db'
+import { forms, formFields } from '@/db/schema'
+import { eq, asc } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import PublicForm from './PublicForm'
+import { DEFAULT_STYLES, DEFAULT_SETTINGS } from '@/components/builder/types'
 
 export const revalidate = 0
 
-import { DEFAULT_STYLES, DEFAULT_SETTINGS } from '@/components/builder/types'
+export default async function PublicFormPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
 
-export default async function PublicFormPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const resolvedParams = await params
-  const supabase = createAdminClient()
-
-  const { data: form, error } = await supabase
-    .from('forms')
-    .select(`*, form_fields (*)`)
-    .eq('id', resolvedParams.id)
-    .single()
-
-  if (error || !form) notFound()
+  const [form] = await db.select().from(forms).where(eq(forms.id, id))
+  if (!form) notFound()
 
   if (!form.published) {
     return (
@@ -36,7 +27,8 @@ export default async function PublicFormPage({
     )
   }
 
-  // Parse description + styles + settings
+  const fields = await db.select().from(formFields).where(eq(formFields.formId, id)).orderBy(asc(formFields.order))
+
   let displayDescription = form.description || ''
   let customStyles = { ...DEFAULT_STYLES }
   let formSettings = { ...DEFAULT_SETTINGS }
@@ -53,16 +45,7 @@ export default async function PublicFormPage({
     displayDescription = parts[0]
   }
 
-  // Sort fields by order
-  if (form.form_fields) {
-    form.form_fields.sort((a: any, b: any) => a.order - b.order)
-  }
+  const formWithFields = { ...form, form_fields: fields }
 
-  return (
-    <PublicForm 
-      form={form} 
-      customStyles={customStyles} 
-      formSettings={formSettings} 
-    />
-  )
+  return <PublicForm form={formWithFields} customStyles={customStyles} formSettings={formSettings} />
 }

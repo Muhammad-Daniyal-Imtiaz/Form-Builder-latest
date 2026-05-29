@@ -1,172 +1,81 @@
-import { createClient, createAdminClient } from '@/utils/supabase/server';
+import { db } from '@/db';
+import { forms } from '@/db/schema';
+import { getAuthUserId, AuthError } from '@/lib/auth';
+import { eq, and } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { encrypt, decrypt } from '@/utils/encryption';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = (await params).id;
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { id } = await params;
+    const userId = await getAuthUserId();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const [form] = await db
+      .select({ slackBotToken: forms.slackBotToken, slackChannelId: forms.slackChannelId, slackChannelName: forms.slackChannelName, slackEnabled: forms.slackEnabled })
+      .from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)));
 
-    const { data: form, error: formError } = await supabase
-      .from('forms')
-      .select('slack_bot_token, slack_channel_id, slack_channel_name, slack_enabled')
-      .eq('id', id)
-      .single();
-
-    if (formError) throw formError;
+    if (!form) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
 
     let channels = [];
-    if (form?.slack_bot_token) {
-        try {
-            const actualToken = await decrypt(form.slack_bot_token);
-            const slackResp = await fetch('https://slack.com/api/conversations.list?types=public_channel', {
-                headers: { 'Authorization': `Bearer ${actualToken}` }
-            });
-            const slackData = await slackResp.json();
-            if (slackData.ok) {
-                channels = slackData.channels.map((c: any) => ({
-                    id: c.id,
-                    name: c.name,
-                    is_private: c.is_private
-                }));
-            }
-        } catch (err) {
-            console.error('Failed to fetch Slack channels:', err);
-        }
+    if (form.slackBotToken) {
+      try {
+        const token = await decrypt(form.slackBotToken);
+        const res = await fetch('https://slack.com/api/conversations.list?types=public_channel', { headers: { Authorization: `Bearer ${token}` } });
+        const d = await res.json();
+        if (d.ok) channels = d.channels.map((c: any) => ({ id: c.id, name: c.name, is_private: c.is_private }));
+      } catch { }
     }
 
-    return NextResponse.json({
-      botToken: form?.slack_bot_token ? '********' : null,
-      channelId: form?.slack_channel_id,
-      channelName: form?.slack_channel_name,
-      isEnabled: form?.slack_enabled,
-      availableChannels: channels
-    });
-  } catch (err) {
-    console.error('Slack GET error:', err);
+    return NextResponse.json({ botToken: form.slackBotToken ? '********' : null, channelId: form.slackChannelId, channelName: form.slackChannelName, isEnabled: form.slackEnabled, availableChannels: channels });
+  } catch (e) {
+    if (e instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = (await params).id;
+    const { id } = await params;
+    const userId = await getAuthUserId();
     const body = await request.json();
     const { action } = body;
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const [form] = await db.select({ id: forms.id, slackBotToken: forms.slackBotToken }).from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)));
+    if (!form) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // UPDATE CONFIG
     if (action === 'update') {
       const { botToken, channelId, channelName, enabled } = body;
-      const updateData: any = {
-        slack_channel_id: channelId,
-        slack_channel_name: channelName,
-        slack_enabled: enabled 
-      };
-      if (botToken && botToken !== '********') {
-        updateData.slack_bot_token = await encrypt(botToken);
-      }
-
-      const { error } = await supabase
-        .from('forms')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) throw error;
+      const updateData: any = { slackChannelId: channelId, slackChannelName: channelName, slackEnabled: enabled };
+      if (botToken && botToken !== '********') updateData.slackBotToken = await encrypt(botToken);
+      await db.update(forms).set(updateData).where(eq(forms.id, id));
       return NextResponse.json({ success: true });
     }
 
-    // CREATE CHANNEL
     if (action === 'create-channel') {
-        const { botToken, name } = body;
-        let actualToken = botToken;
-        if (botToken === '********') {
-            const { data: dbForm } = await supabase.from('forms').select('slack_bot_token').eq('id', id).single();
-            if (dbForm?.slack_bot_token) {
-                actualToken = await decrypt(dbForm.slack_bot_token);
-            }
-        }
+      const { botToken, name } = body;
+      let actualToken = botToken;
+      if (botToken === '********' && form.slackBotToken) actualToken = await decrypt(form.slackBotToken);
 
-        const slackResp = await fetch('https://slack.com/api/conversations.create', {
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${actualToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name })
-        });
-        const slackData = await slackResp.json();
-        
-        if (!slackData.ok) {
-            return NextResponse.json({ error: `Slack Error: ${slackData.error}` }, { status: 400 });
-        }
+      const slackRes = await fetch('https://slack.com/api/conversations.create', { method: 'POST', headers: { Authorization: `Bearer ${actualToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      const slackData = await slackRes.json();
+      if (!slackData.ok) return NextResponse.json({ error: `Slack Error: ${slackData.error}` }, { status: 400 });
 
-        const channelId = slackData.channel.id;
-        const channelName = slackData.channel.name;
-
-        // Auto-join the channel to ensure we can post
-        await fetch('https://slack.com/api/conversations.join', {
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${actualToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ channel: channelId })
-        });
-
-        // Save to database immediately
-        await supabase
-          .from('forms')
-          .update({ 
-            slack_channel_id: channelId,
-            slack_channel_name: channelName,
-            slack_enabled: true 
-          })
-          .eq('id', id);
-
-        return NextResponse.json({ 
-            success: true, 
-            channelId,
-            channelName
-        });
+      const channelId = slackData.channel.id;
+      const channelName = slackData.channel.name;
+      await fetch('https://slack.com/api/conversations.join', { method: 'POST', headers: { Authorization: `Bearer ${actualToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ channel: channelId }) });
+      await db.update(forms).set({ slackChannelId: channelId, slackChannelName: channelName, slackEnabled: true }).where(eq(forms.id, id));
+      return NextResponse.json({ success: true, channelId, channelName });
     }
 
-    // DISCONNECT
     if (action === 'disconnect') {
-      const { error } = await supabase
-        .from('forms')
-        .update({ 
-          slack_bot_token: null, 
-          slack_channel_id: null,
-          slack_channel_name: null,
-          slack_enabled: false 
-        })
-        .eq('id', id);
-
-      if (error) throw error;
+      await db.update(forms).set({ slackBotToken: null, slackChannelId: null, slackChannelName: null, slackEnabled: false }).where(eq(forms.id, id));
       return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (err) {
-    console.error('Slack POST error:', err);
+  } catch (e) {
+    if (e instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.error('Slack POST error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

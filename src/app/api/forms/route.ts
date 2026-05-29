@@ -1,25 +1,43 @@
-import { ensureUserProfile } from '@/lib/user-profile'
-import { createClient, createAdminClient } from '@/utils/supabase/server'
+import { db } from '@/db'
+import { forms, submissions } from '@/db/schema'
+import { getAuthUserId, requireUser, AuthError } from '@/lib/auth'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const userId = await getAuthUserId()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const allForms = await db
+      .select({
+        id: forms.id,
+        userId: forms.userId,
+        title: forms.title,
+        description: forms.description,
+        published: forms.published,
+        logoUrl: forms.logoUrl,
+        coverImageUrl: forms.coverImageUrl,
+        createdAt: forms.createdAt,
+        updatedAt: forms.updatedAt,
+      })
+      .from(forms)
+      .where(eq(forms.userId, userId))
+      .orderBy(desc(forms.createdAt))
 
-    const { data: forms, error } = await supabase
-      .from('forms')
-      .select('*, submissions(count)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    // Attach submission counts
+    const formsWithCounts = await Promise.all(
+      allForms.map(async (form) => {
+        const [result] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(submissions)
+          .where(eq(submissions.formId, form.id))
+        return { ...form, submissions: [{ count: result?.count ?? 0 }] }
+      })
+    )
 
-    if (error) throw error
-    return NextResponse.json(forms)
+    return NextResponse.json(formsWithCounts)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     console.error('GET forms error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -27,37 +45,28 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const user = await requireUser()
     const { title, description } = await request.json()
-    if (!title) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
-    }
 
-    const adminClient = createAdminClient()
-    await ensureUserProfile(adminClient, user, {
-      markVerified: Boolean(user.email_confirmed_at),
+    if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+
+    await db.insert(forms).values({
+      id,
+      userId: user.id,
+      title,
+      description,
+      published: false,
+      createdAt: now,
+      updatedAt: now,
     })
 
-    const { data: form, error } = await supabase
-      .from('forms')
-      .insert({
-        user_id: user.id,
-        title,
-        description,
-        published: false
-      })
-      .select()
-      .single()
-
-    if (error) throw error
+    const [form] = await db.select().from(forms).where(eq(forms.id, id))
     return NextResponse.json(form, { status: 201 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     console.error('POST form error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

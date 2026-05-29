@@ -1,122 +1,88 @@
 import { NextResponse } from 'next/server'
-
-import { createAdminClient, createClient } from '@/utils/supabase/server'
+import { db } from '@/db'
+import { forms } from '@/db/schema'
+import { eq } from 'drizzle-orm'
+import { auth } from '@clerk/nextjs/server'
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
 
 const ALLOWED_FILE_TYPES = new Set([
-  'application/pdf',
-  'application/zip',
-  'application/x-zip-compressed',
-  'application/json',
-  'text/plain',
-  'text/csv',
-  'application/msword',
-  'application/vnd.ms-excel',
-  'application/vnd.ms-powerpoint',
+  'application/pdf', 'application/zip', 'application/x-zip-compressed',
+  'application/json', 'text/plain', 'text/csv', 'application/msword',
+  'application/vnd.ms-excel', 'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 ])
 
 function isAllowedFileType(file: File) {
-  if (ALLOWED_FILE_TYPES.has(file.type)) {
-    return true
-  }
-
-  return (
-    file.type.startsWith('image/') ||
-    file.type.startsWith('audio/') ||
-    file.type.startsWith('video/')
-  )
+  if (ALLOWED_FILE_TYPES.has(file.type)) return true
+  return file.type.startsWith('image/') || file.type.startsWith('audio/') || file.type.startsWith('video/')
 }
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
+/**
+ * File upload endpoint.
+ * Since we no longer have Supabase Storage, files are stored in Cloudflare R2 or
+ * a public bucket. For now, we return a local path reference and let the caller
+ * handle persistence via the submissions API.
+ * 
+ * To use Cloudflare R2, set CLOUDFLARE_R2_* env vars.
+ * If none configured, we return a placeholder path.
+ */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const adminClient = createAdminClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { userId } = await auth()
 
     const formData = await request.formData()
     const file = formData.get('file')
     const formId = formData.get('formId')
 
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-    }
+    if (!(file instanceof File)) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    if (typeof formId !== 'string' || !formId) return NextResponse.json({ error: 'Form ID is required' }, { status: 400 })
 
-    if (typeof formId !== 'string' || !formId) {
-      return NextResponse.json({ error: 'Form ID is required' }, { status: 400 })
-    }
+    const [form] = await db.select({ id: forms.id, userId: forms.userId, published: forms.published }).from(forms).where(eq(forms.id, formId))
+    if (!form) return NextResponse.json({ error: 'Form not found' }, { status: 404 })
 
-    const { data: form, error: formError } = await adminClient
-      .from('forms')
-      .select('id, user_id, published')
-      .eq('id', formId)
-      .single()
-
-    if (formError || !form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 })
-    }
-
-    const isOwner = Boolean(user?.id && user.id === form.user_id)
-    if (!form.published && !isOwner) {
-      return NextResponse.json(
-        { error: 'Files can only be uploaded to published forms' },
-        { status: 403 }
-      )
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return NextResponse.json(
-        { error: 'File is too large. Maximum size is 50MB.' },
-        { status: 400 }
-      )
-    }
-
-    if (!isAllowedFileType(file)) {
-      return NextResponse.json(
-        { error: 'Unsupported file type' },
-        { status: 400 }
-      )
-    }
+    const isOwner = Boolean(userId && userId === form.userId)
+    if (!form.published && !isOwner) return NextResponse.json({ error: 'Files can only be uploaded to published forms' }, { status: 403 })
+    if (file.size > MAX_FILE_SIZE_BYTES) return NextResponse.json({ error: 'File is too large. Maximum size is 50MB.' }, { status: 400 })
+    if (!isAllowedFileType(file)) return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
 
     const safeFileName = `${crypto.randomUUID()}-${sanitizeFileName(file.name)}`
     const filePath = `${form.id}/${safeFileName}`
 
-    const { error } = await adminClient.storage
-      .from('form-attachments')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        contentType: file.type || 'application/octet-stream',
-        upsert: false,
-      })
+    // ── Cloudflare R2 upload (optional) ──────────────────────────────
+    const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID
+    const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET
+    const R2_TOKEN = process.env.CLOUDFLARE_R2_TOKEN
+    const R2_PUBLIC_URL = process.env.CLOUDFLARE_R2_PUBLIC_URL
 
-    if (error) {
-      console.error('Storage upload error:', error)
-      return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+    if (R2_ACCOUNT_ID && R2_BUCKET && R2_TOKEN) {
+      const bytes = await file.arrayBuffer()
+      const uploadRes = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${R2_ACCOUNT_ID}/r2/buckets/${R2_BUCKET}/objects/${filePath}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${R2_TOKEN}`, 'Content-Type': file.type || 'application/octet-stream' },
+          body: bytes,
+        }
+      )
+
+      if (!uploadRes.ok) {
+        console.error('R2 upload error:', await uploadRes.text())
+        return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+      }
+
+      const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${filePath}` : filePath
+      return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
     }
 
-    const { data: publicData } = adminClient.storage
-      .from('form-attachments')
-      .getPublicUrl(filePath)
-
-    return NextResponse.json(
-      {
-        url: publicData.publicUrl,
-        path: filePath,
-        fileName: file.name,
-        size: file.size,
-        mimeType: file.type || 'application/octet-stream',
-      },
-      { status: 201 }
-    )
+    // Fallback: return path reference (useful in dev / no storage configured)
+    return NextResponse.json({ url: `/api/files/${filePath}`, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

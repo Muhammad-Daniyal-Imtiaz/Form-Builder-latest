@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-
-import {
-  FieldsPayloadSchema,
-  normalizeFieldForPersistence,
-} from '@/lib/form-import-schema'
-import { createClient } from '@/utils/supabase/server'
+import { db } from '@/db'
+import { forms, formFields } from '@/db/schema'
+import { getAuthUserId, AuthError } from '@/lib/auth'
+import { eq, and, asc } from 'drizzle-orm'
+import { FieldsPayloadSchema, normalizeFieldForPersistence } from '@/lib/form-import-schema'
 
 export async function PUT(
   request: Request,
@@ -12,79 +11,44 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const userId = await getAuthUserId()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: form, error: formError } = await supabase
-      .from('forms')
-      .select('id')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (formError || !form) {
-      return NextResponse.json({ error: 'Form not found or unauthorized' }, { status: 404 })
-    }
+    const [form] = await db.select({ id: forms.id }).from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)))
+    if (!form) return NextResponse.json({ error: 'Form not found or unauthorized' }, { status: 404 })
 
     const body = await request.json()
     const parsedFields = FieldsPayloadSchema.safeParse(body.fields)
 
     if (!parsedFields.success) {
-      return NextResponse.json(
-        {
-          error: 'Invalid field payload',
-          details: parsedFields.error.issues,
-        },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid field payload', details: parsedFields.error.issues }, { status: 400 })
     }
 
     const normalizedFields = parsedFields.data.map((field, index) => {
-      const normalizedField = normalizeFieldForPersistence(field, index)
-
+      const normalized = normalizeFieldForPersistence(field, index)
       return {
         id: field.id ?? crypto.randomUUID(),
-        form_id: id,
-        label: normalizedField.label,
-        type: normalizedField.type,
-        required: normalizedField.required,
-        options: normalizedField.options,
-        placeholder: normalizedField.placeholder,
-        order: normalizedField.order,
-        logic_rules: normalizedField.logicRules,
-        page_index: normalizedField.pageIndex,
+        formId: id,
+        label: normalized.label,
+        type: normalized.type,
+        required: normalized.required,
+        options: normalized.options,
+        placeholder: normalized.placeholder,
+        order: normalized.order,
+        logicRules: normalized.logicRules,
+        pageIndex: normalized.pageIndex,
       }
     })
 
-    const { error: deleteError } = await supabase
-      .from('form_fields')
-      .delete()
-      .eq('form_id', id)
-
-    if (deleteError) {
-      console.error('Error deleting old fields:', deleteError)
-      return NextResponse.json({ error: 'Failed to update fields' }, { status: 500 })
-    }
+    // Delete old fields then insert new ones
+    await db.delete(formFields).where(eq(formFields.formId, id))
 
     if (normalizedFields.length > 0) {
-      const { error: insertError } = await supabase
-        .from('form_fields')
-        .insert(normalizedFields)
-
-      if (insertError) {
-        console.error('Error inserting new fields:', insertError)
-        return NextResponse.json({ error: 'Failed to save new fields' }, { status: 500 })
-      }
+      await db.insert(formFields).values(normalizedFields)
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     console.error('PUT fields error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
