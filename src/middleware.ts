@@ -1,58 +1,28 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+const isProtectedRoute = createRouteMatcher(["/dashboard(.*)", "/profile(.*)"]);
+const isAuthRoute = createRouteMatcher(["/login", "/signup"]);
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
+export default clerkMiddleware(async (auth, request) => {
+  const { userId } = await auth();
 
-  // IMPORTANT: DO NOT REMOVE. This ensures the auth token is refreshed.
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-
-  // Protected routes logic
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/profile')) {
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      url.searchParams.set('redirectTo', `${pathname}${request.nextUrl.search}`)
-      return NextResponse.redirect(url)
+  if (isProtectedRoute(request)) {
+    if (!userId) {
+      return NextResponse.redirect(new URL("/login", request.url));
     }
   }
 
-  // Auth pages logic (redirect to dashboard if already logged in)
-  const authPages = ['/login', '/signup', '/role-selection']
-  if (authPages.includes(pathname) && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (isAuthRoute(request) && userId) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
-
-  return supabaseResponse
-}
+});
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Skip Next.js internals and all static files, unless found in search params
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
   ],
-}
+};
