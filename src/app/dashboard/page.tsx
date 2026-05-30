@@ -10,10 +10,30 @@ export default async function DashboardPage() {
   if (!userId) redirect('/login')
 
   const claims = sessionClaims as any
-  const email = claims?.email || claims?.primary_email_address || ''
-  const fullName = [claims?.first_name, claims?.last_name].filter(Boolean).join(' ')
-  const name = claims?.full_name || claims?.name || fullName || claims?.username || email.split('@')[0] || 'User'
-  const avatarUrl = claims?.image_url || claims?.picture || null
+  let email = claims?.email || claims?.primary_email_address || ''
+  let name = claims?.full_name || claims?.name || ''
+  let avatarUrl = claims?.image_url || claims?.picture || null
+
+  if (!email && userId) {
+    try {
+      const { clerkClient } = await import('@clerk/nextjs/server')
+      const client = await clerkClient()
+      const clerkUser = await client.users.getUser(userId)
+      email = clerkUser.emailAddresses[0]?.emailAddress || ''
+      name = clerkUser.fullName || clerkUser.username || name || ''
+      avatarUrl = clerkUser.imageUrl || avatarUrl
+    } catch (e: any) {
+      console.warn('[Dashboard Auth Fallback] Failed to fetch user via clerkClient:', e.message)
+    }
+  }
+
+  // Safety fallbacks to prevent Turso NOT NULL constraints from throwing 500 errors
+  if (!email) {
+    email = `user_${userId}@placeholder.formbuilder.com`
+  }
+  if (!name) {
+    name = email.split('@')[0] || 'User'
+  }
 
   // Upsert user into Turso
   await db
