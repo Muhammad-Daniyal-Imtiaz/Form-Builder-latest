@@ -93,30 +93,8 @@ export async function POST(request: Request) {
           console.error('R2 S3 upload error:', r2Error.message)
           return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
         }
-      } else if (R2_TOKEN) {
-        // Method 2: Cloudflare REST API using Bearer Token
-        try {
-          const bytes = await file.arrayBuffer()
-          const uploadRes = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${R2_ACCOUNT_ID}/r2/buckets/${R2_BUCKET}/objects/${filePath}`,
-            {
-              method: 'PUT',
-              headers: { Authorization: `Bearer ${R2_TOKEN}`, 'Content-Type': file.type || 'application/octet-stream' },
-              body: bytes,
-            }
-          )
-
-          if (!uploadRes.ok) {
-            console.error('R2 REST upload error:', await uploadRes.text())
-            return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
-          }
-
-          const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${filePath}` : filePath
-          return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
-        } catch (r2Error: any) {
-          console.error('R2 REST upload error:', r2Error.message)
-          return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
-        }
+      } else {
+        console.warn('R2 S3 credentials not found! Falling back to Turso DB storage.')
       }
     }
 
