@@ -10,6 +10,19 @@
 
 import { createClient } from '@libsql/client/web';
 
+// ─── Cloudflare Worker types (avoids dependency on @cloudflare/workers-types globals) ──
+interface ScheduledEvent {
+  scheduledTime: number;
+  cron: string;
+  noRetry(): void;
+}
+
+interface ExecutionContext {
+  waitUntil(promise: Promise<any>): void;
+  passThroughOnException(): void;
+}
+
+
 // ─── Env Interface ────────────────────────────────────────────────────────────
 export interface Env {
   TURSO_DATABASE_URL: string;
@@ -37,12 +50,17 @@ function getRedis(env: Env) {
   const token = env.UPSTASH_REDIS_REST_TOKEN;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
+  /** Typed wrapper so we never touch `unknown` directly */
+  async function rjson(res: Response): Promise<{ result: any }> {
+    return res.json() as Promise<{ result: any }>;
+  }
+
   return {
     async lmove(src: string, dst: string): Promise<any> {
       const res = await fetch(`${url}/lmove/${encodeURIComponent(src)}/${encodeURIComponent(dst)}/RIGHT/LEFT`, {
         method: 'POST', headers,
       });
-      return (await res.json()).result;
+      return (await rjson(res)).result;
     },
     async lpush(key: string, value: string): Promise<void> {
       await fetch(`${url}/lpush/${encodeURIComponent(key)}`, {
@@ -58,13 +76,13 @@ function getRedis(env: Env) {
       const res = await fetch(`${url}/hget/${encodeURIComponent(key)}/${encodeURIComponent(field)}`, {
         method: 'POST', headers,
       });
-      return (await res.json()).result;
+      return (await rjson(res)).result as string | null;
     },
     async get(key: string): Promise<any> {
       const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, {
         method: 'POST', headers,
       });
-      return (await res.json()).result;
+      return (await rjson(res)).result;
     },
     async setex(key: string, ttl: number, value: string): Promise<void> {
       await fetch(`${url}/setex/${encodeURIComponent(key)}/${ttl}/${encodeURIComponent(value)}`, {
@@ -78,6 +96,7 @@ function getRedis(env: Env) {
     },
   };
 }
+
 
 // ─── Encryption ───────────────────────────────────────────────────────────────
 const ENCRYPTION_PREFIX = 'enc:v2';
