@@ -55,41 +55,68 @@ export async function POST(request: Request) {
     const safeFileName = `${crypto.randomUUID()}-${sanitizeFileName(file.name)}`
     const filePath = `${form.id}/${safeFileName}`
 
-    // ── Cloudflare R2 upload (S3 API) ─────────────────────────────────────────
-    const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID
-    const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET
-    const R2_ACCESS_KEY_ID = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
-    const R2_SECRET_ACCESS_KEY = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
-    const R2_PUBLIC_URL = process.env.CLOUDFLARE_R2_PUBLIC_URL
+    // ── Cloudflare R2 upload ──────────────────────────────────────────────────
+    const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID?.trim()
+    const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET?.trim()
+    const R2_ACCESS_KEY_ID = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID?.trim()
+    const R2_SECRET_ACCESS_KEY = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY?.trim()
+    const R2_TOKEN = process.env.CLOUDFLARE_R2_TOKEN?.trim()
+    const R2_PUBLIC_URL = process.env.CLOUDFLARE_R2_PUBLIC_URL?.trim()
 
-    if (R2_ACCOUNT_ID && R2_BUCKET && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
-      try {
-        const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
-        
-        const s3Client = new S3Client({
-          region: 'auto',
-          endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-          credentials: {
-            accessKeyId: R2_ACCESS_KEY_ID,
-            secretAccessKey: R2_SECRET_ACCESS_KEY,
-          },
-        })
+    if (R2_ACCOUNT_ID && R2_BUCKET) {
+      if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
+        // Method 1: AWS S3 SDK
+        try {
+          const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
+          const s3Client = new S3Client({
+            region: 'auto',
+            endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            credentials: {
+              accessKeyId: R2_ACCESS_KEY_ID,
+              secretAccessKey: R2_SECRET_ACCESS_KEY,
+            },
+          })
 
-        const bytes = await file.arrayBuffer()
-        const buffer = Buffer.from(bytes)
+          const bytes = await file.arrayBuffer()
+          const buffer = Buffer.from(bytes)
 
-        await s3Client.send(new PutObjectCommand({
-          Bucket: R2_BUCKET,
-          Key: filePath,
-          Body: buffer,
-          ContentType: file.type || 'application/octet-stream',
-        }))
+          await s3Client.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: filePath,
+            Body: buffer,
+            ContentType: file.type || 'application/octet-stream',
+          }))
 
-        const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${filePath}` : filePath
-        return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
-      } catch (r2Error: any) {
-        console.error('R2 S3 upload error:', r2Error.message)
-        return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+          const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${filePath}` : filePath
+          return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
+        } catch (r2Error: any) {
+          console.error('R2 S3 upload error:', r2Error.message)
+          return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+        }
+      } else if (R2_TOKEN) {
+        // Method 2: Cloudflare REST API using Bearer Token
+        try {
+          const bytes = await file.arrayBuffer()
+          const uploadRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${R2_ACCOUNT_ID}/r2/buckets/${R2_BUCKET}/objects/${filePath}`,
+            {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${R2_TOKEN}`, 'Content-Type': file.type || 'application/octet-stream' },
+              body: bytes,
+            }
+          )
+
+          if (!uploadRes.ok) {
+            console.error('R2 REST upload error:', await uploadRes.text())
+            return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+          }
+
+          const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${filePath}` : filePath
+          return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
+        } catch (r2Error: any) {
+          console.error('R2 REST upload error:', r2Error.message)
+          return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+        }
       }
     }
 
