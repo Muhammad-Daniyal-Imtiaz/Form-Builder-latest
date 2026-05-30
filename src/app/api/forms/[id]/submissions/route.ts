@@ -302,15 +302,25 @@ export async function POST(
     await db.insert(submissions).values(submissionRecord)
 
     if (fileList.length > 0) {
-      await db.insert(files).values(
-        fileList.map((f: any) => ({
-          submissionId: subId,
-          filePath: f.path || f.url || '',
-          fileName: f.fileName || f.name || 'unknown',
-          fileSize: f.size || 0,
-          mimeType: f.mimeType || f.mime_type || 'application/octet-stream',
-        }))
-      ).catch((e: any) => console.error('[File Insert Error]', e.message))
+      for (const f of fileList) {
+        try {
+          const path = f.path || f.url || ''
+          const [existing] = await db.select().from(files).where(eq(files.filePath, path))
+          if (existing) {
+            await db.update(files).set({ submissionId: subId }).where(eq(files.filePath, path))
+          } else {
+            await db.insert(files).values({
+              submissionId: subId,
+              filePath: path,
+              fileName: f.fileName || f.name || 'unknown',
+              fileSize: f.size || 0,
+              mimeType: f.mimeType || f.mime_type || 'application/octet-stream',
+            })
+          }
+        } catch (e: any) {
+          console.error('[File Link Error]', e.message)
+        }
+      }
     }
 
     // Cache idempotency if Redis is active

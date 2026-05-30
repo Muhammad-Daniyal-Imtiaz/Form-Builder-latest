@@ -146,6 +146,7 @@ export const files = sqliteTable(
     fileName: text("file_name").notNull(),
     fileSize: integer("file_size"),
     mimeType: text("mime_type"),
+    fileContent: text("file_content"),
     uploadedAt: text("uploaded_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (t) => ({

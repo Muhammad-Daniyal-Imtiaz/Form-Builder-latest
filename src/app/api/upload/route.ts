@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { forms } from '@/db/schema'
+import { forms, files } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
 
@@ -81,7 +81,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
     }
 
-    // Fallback: return path reference (useful in dev / no storage configured)
+    // Fallback: save to DB as base64 reference (useful in dev / no R2 storage configured)
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer())
+      const base64 = buffer.toString('base64')
+      await db.insert(files).values({
+        filePath,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        fileContent: base64,
+      })
+    } catch (dbErr: any) {
+      console.error('Failed to save file to DB fallback:', dbErr.message)
+      return NextResponse.json({ error: 'File save failed' }, { status: 500 })
+    }
+
     return NextResponse.json({ url: `/api/files/${filePath}`, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
   } catch (error) {
     console.error('Upload error:', error)
