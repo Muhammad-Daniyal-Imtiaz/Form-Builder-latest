@@ -14,7 +14,7 @@ import { forms, submissions, formFields, files } from '@/db/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { decrypt } from '@/utils/encryption'
 import nodemailer from 'nodemailer'
-import { createHash, createDecipheriv, pbkdf2Sync } from 'crypto'
+import { createHash, createDecipheriv, pbkdf2Sync } from 'node:crypto'
 
 // ─── Auth guard for cron/internal calls ──────────────────────────────────────
 const PROCESSOR_SECRET = process.env.PROCESSOR_SECRET ?? ''
