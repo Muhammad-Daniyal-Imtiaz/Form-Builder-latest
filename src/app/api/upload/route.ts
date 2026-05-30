@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { db } from '@/db'
 import { forms, files } from '@/db/schema'
 import { eq } from 'drizzle-orm'
@@ -67,7 +68,6 @@ export async function POST(request: Request) {
       if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
         // Method 1: AWS S3 SDK
         try {
-          const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
           const s3Client = new S3Client({
             region: 'auto',
             endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,

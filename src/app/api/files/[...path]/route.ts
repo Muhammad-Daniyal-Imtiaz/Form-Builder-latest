@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { db } from '@/db'
 import { files } from '@/db/schema'
 import { eq } from 'drizzle-orm'
@@ -40,7 +41,6 @@ export async function GET(
 
       if (R2_ACCOUNT_ID && R2_BUCKET && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
         try {
-          const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3')
           const s3Client = new S3Client({
             region: 'auto',
             endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -55,6 +55,9 @@ export async function GET(
             Key: filePath,
           }))
 
+          if (!s3Response.Body) {
+            throw new Error('S3 response body is empty')
+          }
           const byteArray = await s3Response.Body.transformToByteArray()
           fileBuffer = Buffer.from(byteArray)
         } catch (r2Err: any) {
