@@ -48,8 +48,19 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
       const formData = await formRes.json()
       const subsData = await subsRes.json()
 
-      setForm(formData)
-      setSubmissions(subsData)
+      // Normalise form fields key (API returns form_fields from /api/forms/[id])
+      const normForm = {
+        ...formData,
+        form_fields: formData.form_fields ?? formData.formFields ?? [],
+      }
+      setForm(normForm)
+      // Normalise Drizzle camelCase → snake_case so the rest of the UI works
+      const normSubs = subsData.map((s: any) => ({
+        ...s,
+        submitted_at: s.submitted_at ?? s.submittedAt,
+        data: typeof s.data === 'string' ? JSON.parse(s.data) : (s.data ?? {}),
+      }))
+      setSubmissions(normSubs)
       
       // Fetch integration status
       const [intRes, zapRes, airRes] = await Promise.all([
