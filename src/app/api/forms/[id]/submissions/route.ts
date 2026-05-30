@@ -22,29 +22,7 @@ function getClientIp(request: Request) {
   )
 }
 
-async function insertSubmissionDirect(
-  formId: string,
-  data: Record<string, unknown>,
-  fileList: any[],
-  submittedAt: string
-) {
-  const subId = crypto.randomUUID()
-  await db.insert(submissions).values({ id: subId, formId, data, submittedAt })
-
-  if (fileList.length > 0) {
-    await db.insert(files).values(
-      fileList.map((f) => ({
-        submissionId: subId,
-        filePath: f.path,
-        fileName: f.fileName || 'unknown',
-        fileSize: f.size || 0,
-        mimeType: f.mimeType || f.mime_type || 'application/octet-stream',
-      }))
-    )
-  }
-  return subId
-}
-
+// ─── GET: list submissions (dashboard) ───────────────────────────────────────
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -53,10 +31,19 @@ export async function GET(
     const { id } = await params
     const userId = await getAuthUserId()
 
-    const [form] = await db.select({ id: forms.id }).from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)))
+    const [form] = await db
+      .select({ id: forms.id })
+      .from(forms)
+      .where(and(eq(forms.id, id), eq(forms.userId, userId)))
+
     if (!form) return NextResponse.json({ error: 'Form not found or unauthorized' }, { status: 404 })
 
-    const subs = await db.select().from(submissions).where(eq(submissions.formId, id)).orderBy(desc(submissions.submittedAt))
+    const subs = await db
+      .select()
+      .from(submissions)
+      .where(eq(submissions.formId, id))
+      .orderBy(desc(submissions.submittedAt))
+
     return NextResponse.json(subs)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -65,6 +52,7 @@ export async function GET(
   }
 }
 
+// ─── POST: receive submission (public form) ───────────────────────────────────
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -74,25 +62,36 @@ export async function POST(
     const clientIp = getClientIp(request)
     const idempotencyKey = request.headers.get('idempotency-key')
     const submittedAt = new Date().toISOString()
+
     const redis = getRedisClient()
     const ratelimit = getSubmissionRateLimit()
 
-    // Idempotency check
+    // ── Idempotency check ─────────────────────────────────────────────────────
     if (idempotencyKey && redis) {
-      const existing = await redis.get<string>(`idempotency:${idempotencyKey}`)
+      const existing = await redis.get<string>(`idempotency:${idempotencyKey}`).catch(() => null)
       if (existing) {
-        return NextResponse.json({ success: true, message: 'Submission received (idempotent retry).', queue_id: existing }, { status: 202 })
+        return NextResponse.json(
+          { success: true, message: 'Submission already received.', submission_id: existing },
+          { status: 202 }
+        )
       }
     }
 
-    // Rate limiting
+    // ── Rate limiting ─────────────────────────────────────────────────────────
     if (ratelimit) {
       try {
         const { success, limit, reset, remaining } = await ratelimit.limit(`${id}:${clientIp}`)
         if (!success) {
           return NextResponse.json(
             { error: 'Too many submissions. Please try again in 10 minutes.' },
-            { status: 429, headers: { 'X-RateLimit-Limit': limit.toString(), 'X-RateLimit-Remaining': remaining.toString(), 'X-RateLimit-Reset': reset.toString() } }
+            {
+              status: 429,
+              headers: {
+                'X-RateLimit-Limit': limit.toString(),
+                'X-RateLimit-Remaining': remaining.toString(),
+                'X-RateLimit-Reset': reset.toString(),
+              },
+            }
           )
         }
       } catch (e) {
@@ -100,6 +99,7 @@ export async function POST(
       }
     }
 
+    // ── Validate body ─────────────────────────────────────────────────────────
     const body = await request.json()
     const parsed = submissionSchema.safeParse(body)
     if (!parsed.success) {
@@ -107,6 +107,8 @@ export async function POST(
     }
 
     const { data, files: fileList = [], captchaToken } = parsed.data
+
+    // ── Load form (try Redis cache first) ─────────────────────────────────────
     const cacheKey = `form:${id}:meta`
     let form: any = null
 
@@ -126,36 +128,76 @@ export async function POST(
       return NextResponse.json({ error: 'Form is not accepting submissions' }, { status: 403 })
     }
 
+    // ── Turnstile captcha (optional) ──────────────────────────────────────────
     if (
       process.env.TURNSTILE_SECRET_KEY &&
       process.env.TURNSTILE_SECRET_KEY !== 'your_secret_key_here' &&
-      !captchaToken
+      captchaToken
     ) {
-      return NextResponse.json({ error: 'Security check required' }, { status: 400 })
-    }
-
-    // Enqueue via Redis if available
-    if (redis) {
-      const msgId = crypto.randomUUID()
-      const payload = { msg_id: msgId, form_id: id, data, files: fileList, captchaToken, submitted_at: submittedAt, client_ip: clientIp }
-
       try {
-        const multi = redis.multi()
-        multi.lpush('form_submissions_queue', JSON.stringify(payload))
-        multi.hset(`msg:${msgId}`, { status: 'queued', formId: id, ts: Date.now() })
-        multi.expire(`msg:${msgId}`, 86400)
-        if (idempotencyKey) multi.setex(`idempotency:${idempotencyKey}`, 600, msgId)
-        await multi.exec()
-
-        return NextResponse.json({ success: true, message: 'Submission received and is being processed.', queue_id: msgId }, { status: 202 })
-      } catch (redisError) {
-        console.warn('Redis enqueue failed, falling back to direct DB insert:', redisError)
+        const vRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${captchaToken}`,
+        })
+        const vData = await vRes.json()
+        if (!vData.success) {
+          return NextResponse.json({ error: 'Security check failed. Please refresh and try again.' }, { status: 400 })
+        }
+      } catch (e) {
+        console.warn('Turnstile verification failed, allowing submission:', e)
       }
     }
 
-    const submissionId = await insertSubmissionDirect(id, data, fileList, submittedAt)
-    return NextResponse.json({ success: true, message: 'Submission received successfully.', submission_id: submissionId }, { status: 201 })
-  } catch (error) {
+    // ── Insert submission directly into Turso ─────────────────────────────────
+    const subId = crypto.randomUUID()
+    await db.insert(submissions).values({
+      id: subId,
+      formId: id,
+      data,
+      submittedAt,
+    })
+
+    // ── Insert file records if any ────────────────────────────────────────────
+    if (fileList.length > 0) {
+      await db.insert(files).values(
+        fileList.map((f: any) => ({
+          submissionId: subId,
+          filePath: f.path || f.url || '',
+          fileName: f.fileName || f.name || 'unknown',
+          fileSize: f.size || 0,
+          mimeType: f.mimeType || f.mime_type || 'application/octet-stream',
+        }))
+      ).catch((e: any) => console.error('File insert error:', e.message))
+    }
+
+    // ── Store idempotency key ─────────────────────────────────────────────────
+    if (idempotencyKey && redis) {
+      await redis.setex(`idempotency:${idempotencyKey}`, 600, subId).catch(() => null)
+    }
+
+    // ── Enqueue integrations asynchronously via Redis (best-effort) ───────────
+    if (redis) {
+      const msgId = crypto.randomUUID()
+      const payload = {
+        msg_id: msgId,
+        form_id: id,
+        submission_id: subId,
+        data,
+        files: fileList,
+        submitted_at: submittedAt,
+        client_ip: clientIp,
+        // Mark as already saved — processor should only run integrations
+        already_saved: true,
+      }
+      redis.lpush('form_integrations_queue', JSON.stringify(payload)).catch(() => null)
+    }
+
+    return NextResponse.json(
+      { success: true, message: 'Submission received successfully.', submission_id: subId },
+      { status: 201 }
+    )
+  } catch (error: any) {
     console.error('POST submission error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
