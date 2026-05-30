@@ -1,18 +1,19 @@
 import { db } from '@/db'
 import { forms, users, submissions } from '@/db/schema'
 import { eq, desc, sql } from 'drizzle-orm'
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import DashboardClient from './DashboardClient'
 
 export default async function DashboardPage() {
-  const { userId } = await auth()
-  if (!userId) redirect('/sign-in')
+  const { userId, sessionClaims } = await auth()
+  if (!userId) redirect('/login')
 
-  const clerkUser = await currentUser()
-  const email = clerkUser?.emailAddresses[0]?.emailAddress ?? ''
-  const name = clerkUser?.fullName || clerkUser?.username || email.split('@')[0] || 'User'
-  const avatarUrl = clerkUser?.imageUrl ?? null
+  const claims = sessionClaims as any
+  const email = claims?.email || claims?.primary_email_address || ''
+  const fullName = [claims?.first_name, claims?.last_name].filter(Boolean).join(' ')
+  const name = claims?.full_name || claims?.name || fullName || claims?.username || email.split('@')[0] || 'User'
+  const avatarUrl = claims?.image_url || claims?.picture || null
 
   // Upsert user into Turso
   await db
