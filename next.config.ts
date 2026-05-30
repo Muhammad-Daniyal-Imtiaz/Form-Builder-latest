@@ -8,7 +8,14 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Static assets are handled by Cloudflare Pages
+  // Tell webpack/OpenNext NOT to bundle these native packages
+  serverExternalPackages: [
+    '@libsql/client',
+    '@libsql/hrana-client',
+    '@libsql/isomorphic-ws',
+    '@libsql/isomorphic-fetch',
+    'nodemailer',
+  ],
 };
 
 export default nextConfig;
