@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { db } from '@/db'
 import { forms, files } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
+import { putR2Object } from '@/lib/r2-storage'
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
 
@@ -25,15 +25,6 @@ function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
-/**
- * File upload endpoint.
- * Since we no longer have Supabase Storage, files are stored in Cloudflare R2 or
- * a public bucket. For now, we return a local path reference and let the caller
- * handle persistence via the submissions API.
- * 
- * To use Cloudflare R2, set CLOUDFLARE_R2_* env vars.
- * If none configured, we return a placeholder path.
- */
 export async function POST(request: Request) {
   try {
     const { userId } = await auth()
@@ -45,7 +36,11 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     if (typeof formId !== 'string' || !formId) return NextResponse.json({ error: 'Form ID is required' }, { status: 400 })
 
-    const [form] = await db.select({ id: forms.id, userId: forms.userId, published: forms.published }).from(forms).where(eq(forms.id, formId))
+    const [form] = await db
+      .select({ id: forms.id, userId: forms.userId, published: forms.published })
+      .from(forms)
+      .where(eq(forms.id, formId))
+
     if (!form) return NextResponse.json({ error: 'Form not found' }, { status: 404 })
 
     const isOwner = Boolean(userId && userId === form.userId)
@@ -55,65 +50,25 @@ export async function POST(request: Request) {
 
     const safeFileName = `${crypto.randomUUID()}-${sanitizeFileName(file.name)}`
     const filePath = `${form.id}/${safeFileName}`
+    const mimeType = file.type || 'application/octet-stream'
 
-    // ── Cloudflare R2 upload ──────────────────────────────────────────────────
-    const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID?.trim()
-    const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET?.trim()
-    const R2_ACCESS_KEY_ID = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID?.trim()
-    const R2_SECRET_ACCESS_KEY = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY?.trim()
-    const R2_TOKEN = process.env.CLOUDFLARE_R2_TOKEN?.trim()
-    const R2_PUBLIC_URL = process.env.CLOUDFLARE_R2_PUBLIC_URL?.trim()
-
-    if (R2_ACCOUNT_ID && R2_BUCKET) {
-      if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
-        // Method 1: AWS S3 SDK
-        try {
-          const s3Client = new S3Client({
-            region: 'auto',
-            endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-            credentials: {
-              accessKeyId: R2_ACCESS_KEY_ID,
-              secretAccessKey: R2_SECRET_ACCESS_KEY,
-            },
-          })
-
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-
-          await s3Client.send(new PutObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: filePath,
-            Body: buffer,
-            ContentType: file.type || 'application/octet-stream',
-          }))
-
-          return NextResponse.json({ url: `/api/files/${filePath}`, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
-        } catch (r2Error: any) {
-          console.error('R2 S3 upload error:', r2Error.message)
-          return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
-        }
-      } else {
-        console.warn('R2 S3 credentials not found! Falling back to Turso DB storage.')
-      }
-    }
-
-    // Fallback: save to DB as base64 reference (useful in dev / no R2 storage configured)
     try {
-      const buffer = Buffer.from(await file.arrayBuffer())
-      const base64 = buffer.toString('base64')
+      await putR2Object(filePath, await file.arrayBuffer(), mimeType)
       await db.insert(files).values({
         filePath,
         fileName: file.name,
         fileSize: file.size,
-        mimeType: file.type || 'application/octet-stream',
-        fileContent: base64,
+        mimeType,
       })
-    } catch (dbErr: any) {
-      console.error('Failed to save file to DB fallback:', dbErr.message)
-      return NextResponse.json({ error: 'File save failed' }, { status: 500 })
+    } catch (uploadErr: any) {
+      console.error('R2 upload error:', uploadErr.message)
+      return NextResponse.json({ error: 'File upload failed', details: uploadErr.message }, { status: 500 })
     }
 
-    return NextResponse.json({ url: `/api/files/${filePath}`, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
+    return NextResponse.json(
+      { url: `/api/files/${filePath}`, path: filePath, fileName: file.name, size: file.size, mimeType },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
