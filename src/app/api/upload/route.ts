@@ -87,8 +87,7 @@ export async function POST(request: Request) {
             ContentType: file.type || 'application/octet-stream',
           }))
 
-          const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${filePath}` : filePath
-          return NextResponse.json({ url: publicUrl, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
+          return NextResponse.json({ url: `/api/files/${filePath}`, path: filePath, fileName: file.name, size: file.size, mimeType: file.type || 'application/octet-stream' }, { status: 201 })
         } catch (r2Error: any) {
           console.error('R2 S3 upload error:', r2Error.message)
           return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
