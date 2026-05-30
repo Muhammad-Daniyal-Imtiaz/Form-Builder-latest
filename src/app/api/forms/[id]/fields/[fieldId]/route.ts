@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-
+import { db } from '@/db'
+import { forms, formFields } from '@/db/schema'
+import { getAuthUserId, AuthError } from '@/lib/auth'
+import { eq, and, desc } from 'drizzle-orm'
 import { FieldSchema, normalizeFieldForPersistence } from '@/lib/form-import-schema'
-import { createClient } from '@/utils/supabase/server'
 
 export async function POST(
   request: Request,
@@ -9,24 +11,10 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const userId = await getAuthUserId()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: form } = await supabase
-      .from('forms')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (!form || form.user_id !== user.id) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 })
-    }
+    const [form] = await db.select({ id: forms.id }).from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId)))
+    if (!form) return NextResponse.json({ error: 'Form not found or unauthorized' }, { status: 404 })
 
     const fieldBody = await request.json()
     const parsedField = FieldSchema.safeParse(fieldBody)
@@ -38,39 +26,33 @@ export async function POST(
       )
     }
 
-    const { data: maxOrder } = await supabase
-      .from('form_fields')
-      .select('order')
-      .eq('form_id', id)
-      .order('order', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    const [maxOrderField] = await db.select({ order: formFields.order }).from(formFields).where(eq(formFields.formId, id)).orderBy(desc(formFields.order)).limit(1)
 
     const normalizedField = normalizeFieldForPersistence(
       parsedField.data,
-      maxOrder ? maxOrder.order + 1 : 0
+      maxOrderField ? maxOrderField.order + 1 : 0
     )
 
-    const { data: field, error } = await supabase
-      .from('form_fields')
-      .insert({
-        id: parsedField.data.id ?? crypto.randomUUID(),
-        form_id: id,
-        label: normalizedField.label,
-        type: normalizedField.type,
-        required: normalizedField.required,
-        options: normalizedField.options,
-        placeholder: normalizedField.placeholder,
-        order: normalizedField.order,
-        logic_rules: normalizedField.logicRules,
-        page_index: normalizedField.pageIndex,
-      })
-      .select()
-      .single()
+    const insertValues = {
+      id: parsedField.data.id ?? crypto.randomUUID(),
+      formId: id,
+      label: normalizedField.label,
+      type: normalizedField.type,
+      required: normalizedField.required,
+      options: normalizedField.options,
+      placeholder: normalizedField.placeholder,
+      order: normalizedField.order,
+      logicRules: normalizedField.logicRules,
+      pageIndex: normalizedField.pageIndex,
+    }
 
-    if (error) throw error
+    await db.insert(formFields).values(insertValues)
+
+    const [field] = await db.select().from(formFields).where(eq(formFields.id, insertValues.id))
+
     return NextResponse.json(field, { status: 201 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     console.error('POST field error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

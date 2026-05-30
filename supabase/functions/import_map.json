@@ -1,7 +1,0 @@
-{
-  "imports": {
-    "supabase": "https://esm.sh/@supabase/supabase-js@2.42.0",
-    "nodemailer": "https://esm.sh/nodemailer@6.9.13",
-    "std/": "https://deno.land/std@0.131.0/"
-  }
-}

@@ -197,15 +197,16 @@ export default function PublicForm({
   const settings: FormSettings = { ...DEFAULT_SETTINGS, ...rawSettings }
 
   const fields = form.form_fields || []
-  const maxPage = fields.length > 0 ? Math.max(...fields.map((f: any) => f.page_index || 0)) : 0
+  const maxPage = fields.length > 0 ? Math.max(...fields.map((f: any) => f.pageIndex ?? f.page_index ?? 0)) : 0
   const isLastPage = currentPage === maxPage
 
-  const currentPageFields = fields.filter((f: any) => (f.page_index || 0) === currentPage)
+  const currentPageFields = fields.filter((f: any) => (f.pageIndex ?? f.page_index ?? 0) === currentPage)
 
   // --- LOGIC ENGINE ---
   const isFieldTargetOfShowRule = (targetId: string) => {
     return form.form_fields?.some((f: any) => {
-      const rules = f.logicRules || f.logic_rules;
+      let rules = f.logicRules ?? f.logic_rules;
+      if (typeof rules === 'string') { try { rules = JSON.parse(rules); } catch { rules = []; } }
       return rules?.some((r: any) => r.action === 'show' && r.targetId === targetId);
     });
   };
@@ -238,7 +239,8 @@ export default function PublicForm({
     form.form_fields?.forEach((sourceField: any) => {
         const sourceVal = data[sourceField.id || sourceField.label];
         if (sourceVal !== undefined && sourceVal !== '') {
-          const rules = sourceField.logicRules || sourceField.logic_rules;
+          let rules = sourceField.logicRules ?? sourceField.logic_rules;
+          if (typeof rules === 'string') { try { rules = JSON.parse(rules); } catch { rules = []; } }
           rules?.forEach((rule: any) => {
               if (rule.targetId === fieldId) {
                   const isMet = evaluateCondition(rule.value, sourceVal, rule.condition);
@@ -256,9 +258,13 @@ export default function PublicForm({
 
   const executeJumpLogic = (fieldId: string, value: any) => {
     const sourceField = form.form_fields?.find((f: any) => (f.id || f.label) === fieldId);
-    if (!sourceField || !sourceField.logicRules) return;
+    if (!sourceField) return;
+    
+    let rules = sourceField.logicRules ?? sourceField.logic_rules;
+    if (typeof rules === 'string') { try { rules = JSON.parse(rules); } catch { rules = []; } }
+    if (!rules) return;
 
-    for (const rule of sourceField.logicRules) {
+    for (const rule of rules) {
         if (rule.action === 'jump_to' && evaluateCondition(rule.value, value, rule.condition)) {
             setTimeout(() => {
                 const el = document.getElementById(`field-${rule.targetId}`);
@@ -614,11 +620,44 @@ export default function PublicForm({
                           {field.type === 'radio' && <div className="space-y-2">{field.options?.map((o: string, i: number) => <label key={i} className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="radio" name={fieldKey} value={o} onChange={e => handleInputChange(fieldKey, e.target.value)} />{o}</label>)}</div>}
                           {field.type === 'checkbox' && (field.options?.length ? <div className="space-y-2">{field.options.map((o: string, i: number) => <label key={i} className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="checkbox" onChange={e => handleCheckboxChange(fieldKey, o, e.target.checked)} />{o}</label>)}</div> : <label className="flex items-center gap-3 p-3 border-2 rounded-xl" style={{ borderColor: cs.inputBorderColor }}><input type="checkbox" onChange={e => handleInputChange(fieldKey, e.target.checked)} /> {field.placeholder || 'I agree'}</label>)}
                           {field.type === 'rating' && <div className="flex gap-2">{[1,2,3,4,5].map(s => <button key={s} type="button" onClick={() => handleInputChange(fieldKey, s)} style={{ color: (data[fieldKey] || 0) >= s ? cs.accentColor : '#ccc' }}><Smartphone className="w-8 h-8" /></button>)}</div>}
+                          {(field.type === 'file' || field.type === 'multifile') && (
+                            <div className="relative">
+                              <input
+                                type="file"
+                                multiple={field.type === 'multifile'}
+                                onChange={e => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    handleFileChange(fieldKey, e.target.files, field.type === 'multifile')
+                                  }
+                                }}
+                                style={{ ...getInternalInputStyle(), padding: '0.5rem' }}
+                                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                              />
+                              {files[fieldKey] && (
+                                <div className="mt-2 text-sm text-green-600 font-medium">
+                                  {Array.isArray(files[fieldKey]) 
+                                    ? `${files[fieldKey].length} file(s) uploaded`
+                                    : 'File uploaded successfully'}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
                   </motion.div>
                 </AnimatePresence>
+
+                {isLastPage && requiresCaptcha && (
+                  <div className="mt-6 flex justify-center">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey={turnstileSiteKey}
+                      onSuccess={setTurnstileToken}
+                    />
+                  </div>
+                )}
+
                 <div className="pt-8 mt-4 flex gap-4">
                   {currentPage > 0 && <button type="button" onClick={handleBack} className="flex-1 py-4 font-bold border-2" style={{ color: cs.bodyText, borderColor: cs.inputBorderColor, borderRadius: btnRadius }}>Back</button>}
                   <button type={isLastPage ? "submit" : "button"} onClick={isLastPage ? undefined : handleNext} className="flex-[2] py-4 font-bold" style={{ background: cs.accentColor, color: cs.buttonText, borderRadius: btnRadius }}>{isLastPage ? (loading ? '...' : (settings.submitButtonText || 'Submit')) : 'Next'}</button>
