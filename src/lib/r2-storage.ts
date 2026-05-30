@@ -72,19 +72,27 @@ export async function putR2Object(key: string, body: ArrayBuffer, contentType: s
     throw new Error('R2 is not configured. Add an R2 binding or S3-compatible R2 credentials.')
   }
 
-  const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
-  const s3Client = new S3Client({
+  const { AwsClient } = await import('aws4fetch')
+  const aws = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: 's3',
     region: 'auto',
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
   })
 
-  await s3Client.send(new PutObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    Body: new Uint8Array(body),
-    ContentType: contentType,
-  }))
+  const uploadUrl = `https://${bucket}.${accountId}.r2.cloudflarestorage.com/${key}`
+  const response = await aws.fetch(uploadUrl, {
+    method: 'PUT',
+    body: body,
+    headers: {
+      'Content-Type': contentType,
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`R2 upload failed: ${response.statusText} - ${errorText}`)
+  }
 }
 
 export async function getR2Object(key: string) {
@@ -106,19 +114,24 @@ export async function getR2Object(key: string) {
     throw new Error('R2 is not configured. Add an R2 binding or S3-compatible R2 credentials.')
   }
 
-  const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3')
-  const s3Client = new S3Client({
+  const { AwsClient } = await import('aws4fetch')
+  const aws = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: 's3',
     region: 'auto',
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
   })
 
-  const s3Response = await s3Client.send(new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-  }))
+  const downloadUrl = `https://${bucket}.${accountId}.r2.cloudflarestorage.com/${key}`
+  const response = await aws.fetch(downloadUrl, {
+    method: 'GET',
+  })
 
-  if (!s3Response.Body) return null
-  const byteArray = await s3Response.Body.transformToByteArray()
-  return copyToArrayBuffer(byteArray)
+  if (response.status === 404) return null
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`R2 download failed: ${response.statusText} - ${errorText}`)
+  }
+
+  return response.arrayBuffer()
 }
