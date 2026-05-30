@@ -1,0 +1,26 @@
+name = "form-builder-submission-processor"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron trigger — runs every 2 minutes automatically
+[triggers]
+crons = ["*/2 * * * *"]
+
+# Bind your Turso database as a Hyperdrive (optional) OR use env vars
+# We use env vars via [vars] and secrets
+
+[vars]
+# Add non-secret vars here if needed
+# ENCRYPTION_PREFIX = "enc:v2"
+
+# All secrets (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, etc.) must be added via:
+#   npx wrangler secret put TURSO_DATABASE_URL
+#   npx wrangler secret put TURSO_AUTH_TOKEN
+#   npx wrangler secret put UPSTASH_REDIS_REST_URL
+#   npx wrangler secret put UPSTASH_REDIS_REST_TOKEN
+#   npx wrangler secret put ENCRYPTION_SECRET
+#   npx wrangler secret put TURNSTILE_SECRET_KEY
+#   npx wrangler secret put GOOGLE_CLIENT_ID
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET
+#   npx wrangler secret put PROCESSOR_SECRET

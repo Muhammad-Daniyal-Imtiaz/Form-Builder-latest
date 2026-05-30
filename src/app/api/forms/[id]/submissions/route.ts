@@ -22,7 +22,7 @@ function getClientIp(request: Request) {
   )
 }
 
-// ─── GET: list submissions (dashboard) ───────────────────────────────────────
+// ─── GET: list submissions for dashboard ──────────────────────────────────────
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -52,7 +52,7 @@ export async function GET(
   }
 }
 
-// ─── POST: receive submission (public form) ───────────────────────────────────
+// ─── POST: receive submission from public form ────────────────────────────────
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -71,7 +71,7 @@ export async function POST(
       const existing = await redis.get<string>(`idempotency:${idempotencyKey}`).catch(() => null)
       if (existing) {
         return NextResponse.json(
-          { success: true, message: 'Submission already received.', submission_id: existing },
+          { success: true, message: 'Submission already received.', queue_id: existing },
           { status: 202 }
         )
       }
@@ -108,7 +108,7 @@ export async function POST(
 
     const { data, files: fileList = [], captchaToken } = parsed.data
 
-    // ── Load form (try Redis cache first) ─────────────────────────────────────
+    // ── Load form (Redis cache → Turso fallback) ───────────────────────────────
     const cacheKey = `form:${id}:meta`
     let form: any = null
 
@@ -128,37 +128,40 @@ export async function POST(
       return NextResponse.json({ error: 'Form is not accepting submissions' }, { status: 403 })
     }
 
-    // ── Turnstile captcha (optional) ──────────────────────────────────────────
-    if (
-      process.env.TURNSTILE_SECRET_KEY &&
-      process.env.TURNSTILE_SECRET_KEY !== 'your_secret_key_here' &&
-      captchaToken
-    ) {
+    // ── Enqueue to Redis → Cloudflare Worker processes it ─────────────────────
+    if (redis) {
+      const msgId = crypto.randomUUID()
+      const payload = {
+        msg_id: msgId,
+        form_id: id,
+        data,
+        files: fileList,
+        captchaToken,
+        submitted_at: submittedAt,
+        client_ip: clientIp,
+      }
+
       try {
-        const vRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${captchaToken}`,
-        })
-        const vData = await vRes.json()
-        if (!vData.success) {
-          return NextResponse.json({ error: 'Security check failed. Please refresh and try again.' }, { status: 400 })
-        }
-      } catch (e) {
-        console.warn('Turnstile verification failed, allowing submission:', e)
+        const multi = redis.multi()
+        multi.lpush('form_submissions_queue', JSON.stringify(payload))
+        multi.hset(`msg:${msgId}`, { status: 'queued', formId: id, ts: Date.now() })
+        multi.expire(`msg:${msgId}`, 86400)
+        if (idempotencyKey) multi.setex(`idempotency:${idempotencyKey}`, 600, msgId)
+        await multi.exec()
+
+        return NextResponse.json(
+          { success: true, message: 'Submission received and queued for processing.', queue_id: msgId },
+          { status: 202 }
+        )
+      } catch (redisError) {
+        console.warn('[POST Submission] Redis enqueue failed, falling back to direct insert:', redisError)
       }
     }
 
-    // ── Insert submission directly into Turso ─────────────────────────────────
+    // ── Fallback: direct DB insert if Redis is unavailable ────────────────────
     const subId = crypto.randomUUID()
-    await db.insert(submissions).values({
-      id: subId,
-      formId: id,
-      data,
-      submittedAt,
-    })
+    await db.insert(submissions).values({ id: subId, formId: id, data, submittedAt })
 
-    // ── Insert file records if any ────────────────────────────────────────────
     if (fileList.length > 0) {
       await db.insert(files).values(
         fileList.map((f: any) => ({
@@ -168,29 +171,7 @@ export async function POST(
           fileSize: f.size || 0,
           mimeType: f.mimeType || f.mime_type || 'application/octet-stream',
         }))
-      ).catch((e: any) => console.error('File insert error:', e.message))
-    }
-
-    // ── Store idempotency key ─────────────────────────────────────────────────
-    if (idempotencyKey && redis) {
-      await redis.setex(`idempotency:${idempotencyKey}`, 600, subId).catch(() => null)
-    }
-
-    // ── Enqueue integrations asynchronously via Redis (best-effort) ───────────
-    if (redis) {
-      const msgId = crypto.randomUUID()
-      const payload = {
-        msg_id: msgId,
-        form_id: id,
-        submission_id: subId,
-        data,
-        files: fileList,
-        submitted_at: submittedAt,
-        client_ip: clientIp,
-        // Mark as already saved — processor should only run integrations
-        already_saved: true,
-      }
-      redis.lpush('form_integrations_queue', JSON.stringify(payload)).catch(() => null)
+      ).catch((e: any) => console.error('[File Insert Error]', e.message))
     }
 
     return NextResponse.json(
