@@ -17,6 +17,9 @@ export type Theme = ThemeTokens & {
 
 const themeIcons: Record<string, React.ReactNode> = {
   'midnight-galaxy': <Sparkles className="w-4 h-4" />,
+  'slate-minimal': <Moon className="w-4 h-4" />,
+  'nordic-frost': <Sun className="w-4 h-4" />,
+  'charcoal-cream': <Palette className="w-4 h-4" />,
   'serene-oasis': <Droplets className="w-4 h-4" />,
   'vibrant-brutalist': <Palette className="w-4 h-4" />
 }
@@ -30,7 +33,7 @@ export const themes: Theme[] = Object.entries(formThemes).map(([id, t]) => ({
   textMuted: t.textSecondary,
   border: t.borderLight,
   card: t.cardBg,
-  lightMode: id === 'serene-oasis' // Serene Oasis is light
+  lightMode: id === 'serene-oasis' || id === 'vibrant-brutalist'
 }))
 
 type ThemeContextType = {

@@ -69,6 +69,90 @@ export const themes: Record<string, ThemeTokens> = {
     radius: '16px',
     fontFamily: '"Plus Jakarta Sans", sans-serif',
   },
+  'slate-minimal': {
+    name: 'Slate Minimal',
+    color1: '#38bdf8', // Soft Sky Blue
+    color2: '#818cf8', // Slate Lavender
+    color3: '#34d399', // Emerald Green
+    color4: '#fb7185', // Rose Petal
+    color5: '#0f172a', // Deep Slate
+    
+    primary: '#38bdf8', primaryHover: '#0284c7',
+    secondary: '#818cf8',
+    accent: '#34d399',
+    
+    pageBg: '#0f172a', cardBg: '#1e293b',
+    headerBg: '#1e293b', headerText: '#f8fafc',
+    inputBg: '#0f172a', inputBorder: '#334155',
+    
+    textPrimary: '#f8fafc', textSecondary: '#94a3b8', textMuted: '#64748b',
+    textOnPrimary: '#0f172a',
+    labelColor: '#e2e8f0',
+    helperText: '#94a3b8',
+    
+    borderLight: '#334155',
+    shadowLg: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+    
+    btnPrimaryBg: '#38bdf8', btnPrimaryText: '#0f172a',
+    radius: '12px',
+    fontFamily: '"Outfit", sans-serif',
+  },
+  'nordic-frost': {
+    name: 'Nordic Frost',
+    color1: '#88c0d0', // Frost Blue
+    color2: '#8fbcbb', // Nord Teal
+    color3: '#a3be8c', // Muted Olive
+    color4: '#ebcb8b', // Warm Sand
+    color5: '#2e3440', // Polar Night
+    
+    primary: '#88c0d0', primaryHover: '#5e81ac',
+    secondary: '#8fbcbb',
+    accent: '#a3be8c',
+    
+    pageBg: '#2e3440', cardBg: '#3b4252',
+    headerBg: '#3b4252', headerText: '#eceff4',
+    inputBg: '#2e3440', inputBorder: '#4c566a',
+    
+    textPrimary: '#eceff4', textSecondary: '#d8dee9', textMuted: '#4c566a',
+    textOnPrimary: '#2e3440',
+    labelColor: '#e5e9f0',
+    helperText: '#d8dee9',
+    
+    borderLight: '#434c5e',
+    shadowLg: '0 10px 15px -3px rgba(0, 0, 0, 0.25)',
+    
+    btnPrimaryBg: '#88c0d0', btnPrimaryText: '#2e3440',
+    radius: '16px',
+    fontFamily: '"Plus Jakarta Sans", sans-serif',
+  },
+  'charcoal-cream': {
+    name: 'Charcoal Cream',
+    color1: '#fbbf24', // Amber Gold
+    color2: '#f472b6', // Muted Rose
+    color3: '#60a5fa', // Soft Blue
+    color4: '#a78bfa', // Soft Purple
+    color5: '#18181b', // Deep Charcoal
+    
+    primary: '#fbbf24', primaryHover: '#d97706',
+    secondary: '#f472b6',
+    accent: '#60a5fa',
+    
+    pageBg: '#18181b', cardBg: '#27272a',
+    headerBg: '#27272a', headerText: '#fafafa',
+    inputBg: '#18181b', inputBorder: '#3f3f46',
+    
+    textPrimary: '#fafafa', textSecondary: '#d4d4d8', textMuted: '#71717a',
+    textOnPrimary: '#18181b',
+    labelColor: '#f4f4f5',
+    helperText: '#d4d4d8',
+    
+    borderLight: '#3f3f46',
+    shadowLg: '0 10px 15px -3px rgba(0, 0, 0, 0.4)',
+    
+    btnPrimaryBg: '#fbbf24', btnPrimaryText: '#18181b',
+    radius: '20px',
+    fontFamily: '"Plus Jakarta Sans", sans-serif',
+  },
   'serene-oasis': {
     name: 'Serene Oasis',
     color1: '#0d9488', // Ethereal Teal
